@@ -19,15 +19,19 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
             algorithms=[ALGORITHM],
         )
 
-        user = payload.get("sub")
+        email = payload.get("sub")
+        user_id = payload.get("user_id")
 
-        if user is None:
+        if email is None or user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token",
             )
 
-        return user
+        return {
+            "email": email,
+            "user_id": user_id,
+        }
 
     except JWTError:
         raise HTTPException(
