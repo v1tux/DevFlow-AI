@@ -31,6 +31,7 @@ AI-powered backend platform focused on repository analysis, software quality ins
 ## 🧠 Tech Stack
 
 ### Back-End
+
 - Python
 - FastAPI
 - SQLAlchemy
@@ -39,11 +40,13 @@ AI-powered backend platform focused on repository analysis, software quality ins
 - Docker
 
 ### Front-End
+
 - React
 - Vite
 - JavaScript
 
 ### DevOps / Quality
+
 - Docker Compose
 - GitHub Actions
 - Ruff Lint
@@ -61,6 +64,7 @@ AI-powered backend platform focused on repository analysis, software quality ins
 The API uses JWT-based authentication.
 
 ### Flow
+
 1. User registers account
 2. User logs in
 3. JWT token is generated
@@ -97,48 +101,78 @@ The API uses JWT-based authentication.
 
 ```bash
 docker compose up --build
+```
 
-Front-End
+### Front-End
+
+```txt
 http://localhost:5173
-Swagger Docs
+```
+
+### Swagger Docs
+
+```txt
 http://localhost:8000/docs
-Back-End API
+```
+
+### Back-End API
+
+```txt
 http://localhost:8000
-⚙️ Environment Variables
+```
 
-Example .env
+---
 
+## ⚙️ Environment Variables
+
+Example `.env`
+
+```env
 APP_NAME=DevFlow AI
 APP_ENV=development
 SECRET_KEY=your-secret-key
 DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/devflow
 CORS_ORIGINS=http://localhost:5173
-📈 Roadmap
-✅ Completed
-JWT Authentication
-PostgreSQL Integration
-Docker Compose Environment
-Protected Routes
-Repository Analysis
-ZIP Upload Analysis
-PDF Report Generation
-Swagger/OpenAPI
-Metrics & Healthcheck
-CI/CD Pipeline
-🚧 Next Steps
-User Dashboard
-Background Queue System
-AI-powered Analysis
-Deploy in Production
-Advanced Metrics
-Team Workspaces
-Security Score System
-👨‍💻 Author
+```
+
+---
+
+## 📈 Roadmap
+
+### ✅ Completed
+
+- JWT Authentication
+- PostgreSQL Integration
+- Docker Compose Environment
+- Protected Routes
+- Repository Analysis
+- ZIP Upload Analysis
+- PDF Report Generation
+- Swagger/OpenAPI
+- Metrics & Healthcheck
+- CI/CD Pipeline
+
+### 🚧 Next Steps
+
+- User Dashboard
+- Background Queue System
+- AI-powered Analysis
+- Deploy in Production
+- Advanced Metrics
+- Team Workspaces
+- Security Score System
+
+---
+
+## 👨‍💻 Author
 
 Victor Anderson Lobo Prates
 
-GitHub: https://github.com/v1tux
-LinkedIn: https://linkedin.com/in/victor-lobo-prates-196970233
-⭐ About
+- GitHub: https://github.com/v1tux
+- LinkedIn: https://linkedin.com/in/victor-lobo-prates-196970233
+
+---
+
+## ⭐ About
 
 DevFlow AI is a portfolio project focused on demonstrating practical backend engineering skills using modern technologies such as FastAPI, PostgreSQL, Docker, JWT Authentication and scalable architecture concepts.
