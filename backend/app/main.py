@@ -6,8 +6,8 @@ from app.api.system import router as system_router
 from app.auth.router import router as auth_router
 from app.core.config import get_settings
 from app.core.database import Base, engine
-from app.core.models import Base, engine
 from app.models import analysis, user  # noqa: F401
+
 settings = get_settings()
 
 app = FastAPI(
