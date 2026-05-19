@@ -5,6 +5,9 @@ from app.api.analysis import router as analysis_router
 from app.api.system import router as system_router
 from app.auth.router import router as auth_router
 from app.core.config import get_settings
+from app.core.database import Base, engine
+from app.models.user import User
+from app.models.analysis import Analysis
 
 settings = get_settings()
 
@@ -14,10 +17,12 @@ app = FastAPI(
     version="1.0.0",
 )
 
+Base.metadata.create_all(bind=engine)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_list,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

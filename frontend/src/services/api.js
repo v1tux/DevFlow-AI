@@ -4,6 +4,16 @@ export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/',
 });
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("devflow_token");
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
 export async function analyzeRepository(repositoryUrl) {
   const { data } = await api.post('/analyses/repository', { repository_url: repositoryUrl });
   return data;
@@ -24,7 +34,11 @@ export async function listAnalyses() {
 }
 
 export async function loginUser(credentials) {
-  const { data } = await api.post('/auth/login', credentials);
+  const { data } = await api.post("/auth/login", {
+    email: credentials.email,
+    password: credentials.password,
+  });
+
   return data;
 }
 

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.core.database import get_db
 from app.models.analysis import Analysis
@@ -10,7 +11,7 @@ router = APIRouter(tags=["System"])
 
 @router.get("/health")
 def health_check(db: Session = Depends(get_db)):
-    db.execute("SELECT 1")
+    db.execute(text("SELECT 1"))
     return {
         "status": "ok",
         "database": "connected",

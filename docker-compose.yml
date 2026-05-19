@@ -28,12 +28,14 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/app:/app/app
-
+    environment:
+      CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+      
   frontend:
     build: ./frontend
     container_name: devflow_frontend
     environment:
-      VITE_API_URL: http://localhost:8000/api
+      VITE_API_URL: http://localhost:8000
     ports:
       - "5173:5173"
     depends_on:
