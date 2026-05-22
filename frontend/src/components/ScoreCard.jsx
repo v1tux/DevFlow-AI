@@ -1,5 +1,12 @@
 import { ShieldCheck } from 'lucide-react';
 
+function getScoreStatus(score) {
+  if (score >= 85) return { label: 'Excelente', className: 'score-good' };
+  if (score >= 70) return { label: 'Boa', className: 'score-ok' };
+  if (score >= 50) return { label: 'Regular', className: 'score-warning' };
+  return { label: 'Crítica', className: 'score-critical' };
+}
+
 export function ScoreCard({ analysis }) {
   if (!analysis) {
     return (
@@ -13,14 +20,24 @@ export function ScoreCard({ analysis }) {
     );
   }
 
+  const status = getScoreStatus(analysis.score);
+
   return (
     <div className="card">
       <div className="row">
         <h2>{analysis.project_name}</h2>
         <ShieldCheck />
       </div>
-      <div className="score">{analysis.score}</div>
+
+      <div className="score-wrapper">
+        <div className={`score ${status.className}`}>{analysis.score}</div>
+        <span className={`score-badge ${status.className}`}>
+          {status.label}
+        </span>
+      </div>
+
       <p>{analysis.summary}</p>
+
       <a href={`http://localhost:8000/analyses/${analysis.id}/report`} target="_blank" rel="noreferrer">
         Baixar relatório em PDF
       </a>
