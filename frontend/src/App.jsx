@@ -4,6 +4,7 @@ import { GitBranch, UploadCloud, Sparkles } from "lucide-react";
 import { analyzeRepository, listAnalyses, uploadZip } from "./services/api";
 import { ScoreCard } from "./components/ScoreCard";
 import { FindingList } from "./components/FindingList";
+import { MetricsCards } from "./components/MetricsCards";
 import "./styles/global.css";
 
 export default function App() {
@@ -64,6 +65,7 @@ export default function App() {
 
   async function handleUploadSubmit(event) {
     event.preventDefault();
+
     if (!file) return;
 
     setLoading(true);
@@ -94,9 +96,9 @@ export default function App() {
         <h1>DevFlow AI</h1>
 
         <p>
-          Plataforma inteligente para analisar repositórios, detectar code smells,
-          riscos de segurança, problemas de arquitetura e gerar um score técnico
-          profissional.
+          Plataforma inteligente para analisar repositórios, detectar code
+          smells, riscos de segurança, problemas de arquitetura e gerar um
+          score técnico profissional.
         </p>
       </section>
 
@@ -143,6 +145,10 @@ export default function App() {
         <ScoreCard analysis={analysis} />
       </section>
 
+      <section className="container" style={{ marginTop: 24 }}>
+        <MetricsCards findings={analysis?.findings || []} />
+      </section>
+
       <section className="container grid" style={{ marginTop: 24 }}>
         <FindingList findings={analysis?.findings || []} />
 
@@ -157,6 +163,7 @@ export default function App() {
               style={{ cursor: "pointer" }}
             >
               <strong>{item.project_name}</strong>
+
               <p>Score: {item.score}/100</p>
             </div>
           ))}
