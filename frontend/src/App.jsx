@@ -5,6 +5,7 @@ import { analyzeRepository, listAnalyses, uploadZip } from "./services/api";
 import { ScoreCard } from "./components/ScoreCard";
 import { FindingList } from "./components/FindingList";
 import { MetricsCards } from "./components/MetricsCards";
+import { QualityBreakdown } from "./components/QualityBreakdown";
 import "./styles/global.css";
 
 export default function App() {
@@ -147,6 +148,13 @@ export default function App() {
 
       <section className="container" style={{ marginTop: 24 }}>
         <MetricsCards findings={analysis?.findings || []} />
+      </section>
+
+      <section className="container" style={{ marginTop: 24 }}>
+        <QualityBreakdown
+          findings={analysis?.findings || []}
+          overallScore={analysis?.score || 0}
+        />
       </section>
 
       <section className="container grid" style={{ marginTop: 24 }}>

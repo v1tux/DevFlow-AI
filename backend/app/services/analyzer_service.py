@@ -31,6 +31,11 @@ class AnalyzerService:
         penalty = self._calculate_score_penalty(findings)
         score = max(0, min(100, 100 - penalty))
 
+        category_scores = self._build_category_scores(findings)
+
+        for finding in findings:
+            finding["category_score"] = category_scores.get(finding.get("category"), 100)
+
         return score, findings[:80]
 
     def _static_checks(self, root: Path, files: list[Path]) -> list[dict]:
@@ -262,7 +267,40 @@ class AnalyzerService:
             pass
 
         return findings
-    
+
+    def _build_category_scores(self, findings: list[dict]) -> dict:
+        categories = {
+            "security",
+            "architecture",
+            "complexity",
+            "devops",
+            "quality",
+            "documentation",
+            "dependencies",
+            "repository",
+            "observability",
+            "reliability",
+            "config",
+        }
+
+        return {
+            category: self._category_score(findings, category)
+            for category in categories
+        }
+
+    def _category_score(self, findings: list[dict], category: str) -> int:
+        category_findings = [
+            finding for finding in findings
+            if finding.get("category") == category
+        ]
+
+        penalty = sum(
+            self._severity_penalty(finding.get("severity", "low"))
+            for finding in category_findings
+        )
+
+        return max(0, min(100, 100 - penalty))
+
     def _calculate_score_penalty(self, findings: list[dict]) -> int:
         severity_count = {
             "critical": 0,
