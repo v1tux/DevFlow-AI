@@ -88,6 +88,16 @@ def analyze_upload(
 
         project_root = temp_dir / "project"
         score, findings = analyzer_service.analyze(project_root)
+        category_scores = analyzer_service.get_category_scores(findings)
+
+        findings = [
+            {
+                "type": "category_scores",
+                "scores": category_scores,
+            },
+            *findings,
+        ]
+
         project_name = file.filename.replace(".zip", "")
         summary = ai_service.generate_summary(project_name, findings, score)
 
