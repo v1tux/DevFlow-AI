@@ -291,3 +291,13 @@ a {
   background: linear-gradient(90deg, #6366f1, #22c55e);
   transition: width .4s ease;
 }
+
+.link-button {
+  background: transparent;
+  border: 0;
+  color: #a5b4fc;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  font-weight: 600;
+}
