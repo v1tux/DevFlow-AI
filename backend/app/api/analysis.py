@@ -15,6 +15,7 @@ from app.services.ai_service import AIService
 from app.services.analyzer_service import AnalyzerService
 from app.services.repository_service import RepositoryService
 from app.services.report_service import ReportService
+from app.services.stack_detection_service import StackDetectionService
 
 router = APIRouter(
     prefix="/analyses",
@@ -26,6 +27,7 @@ repo_service = RepositoryService()
 analyzer_service = AnalyzerService()
 ai_service = AIService()
 report_service = ReportService()
+stack_detection_service = StackDetectionService()
 
 
 @router.post("/repository", response_model=AnalysisResponse)
@@ -40,6 +42,15 @@ def analyze_repository(
         project_name = repo_path.name
         score, findings = analyzer_service.analyze(repo_path)
         summary = ai_service.generate_summary(project_name, findings, score)
+        detected_stack = stack_detection_service.detect(repo_path)
+
+        findings = [
+            {
+                "type": "detected_stack",
+                "scores": detected_stack,
+            },
+            *findings,
+        ]
 
         analysis = Analysis(
             user_id=current_user["user_id"],
@@ -89,11 +100,16 @@ def analyze_upload(
         project_root = temp_dir / "project"
         score, findings = analyzer_service.analyze(project_root)
         category_scores = analyzer_service.get_category_scores(findings)
+        detected_stack = stack_detection_service.detect(project_root)
 
         findings = [
             {
                 "type": "category_scores",
                 "scores": category_scores,
+            },
+            {
+                "type": "detected_stack",
+                "scores": detected_stack,
             },
             *findings,
         ]

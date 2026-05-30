@@ -7,6 +7,7 @@ import { FindingList } from "./components/FindingList";
 import { MetricsCards } from "./components/MetricsCards";
 import { QualityBreakdown } from "./components/QualityBreakdown";
 import "./styles/global.css";
+import { StackOverview } from "./components/StackOverview";
 
 export default function App() {
   const [repositoryUrl, setRepositoryUrl] = useState("");
@@ -155,6 +156,10 @@ export default function App() {
           findings={analysis?.findings || []}
           overallScore={analysis?.score || 0}
         />
+      </section>
+
+      <section className="container" style={{ marginTop: 24 }}>
+        <StackOverview findings={analysis?.findings || []} />
       </section>
 
       <section className="container grid" style={{ marginTop: 24 }}>

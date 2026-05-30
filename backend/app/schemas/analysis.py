@@ -1,4 +1,6 @@
 from datetime import datetime
+from typing import Any
+
 from pydantic import BaseModel, HttpUrl
 
 
@@ -7,11 +9,14 @@ class RepositoryAnalyzeRequest(BaseModel):
 
 
 class Finding(BaseModel):
-    category: str
-    severity: str
+    category: str | None = None
+    severity: str | None = None
     file: str | None = None
-    message: str
-    recommendation: str
+    message: str | None = None
+    recommendation: str | None = None
+    priority: str | None = None
+    type: str | None = None
+    scores: dict[str, Any] | None = None
 
 
 class AnalysisResponse(BaseModel):
