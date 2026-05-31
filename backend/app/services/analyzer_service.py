@@ -43,8 +43,26 @@ class AnalyzerService:
             finding for finding in findings
             if finding.get("category")
         ]
-
+        
         return self._build_category_scores(valid_findings)
+    
+    def get_metrics(self, findings: list[dict], overall_score: int | None = None) -> dict:
+        metric_groups = {
+            "security": ["security"],
+            "architecture": ["architecture", "repository", "dependencies"],
+            "maintainability": ["complexity", "reliability", "config"],
+            "devops": ["devops"],
+            "quality": ["quality", "documentation", "observability"],
+        }
+
+        return {
+            metric_name: self._build_metric_for_categories(
+                findings,
+                categories,
+                overall_score,
+            )
+            for metric_name, categories in metric_groups.items()
+        }
 
     def _static_checks(self, root: Path, files: list[Path]) -> list[dict]:
         findings: list[dict] = []
@@ -275,6 +293,59 @@ class AnalyzerService:
             pass
 
         return findings
+
+    def _build_metric_for_categories(
+        self,
+        findings: list[dict],
+        categories: list[str],
+        overall_score: int | None = None,
+    ) -> dict:
+        related_findings = [
+            finding for finding in findings
+            if finding.get("category") in categories
+        ]
+
+        severity = self._severity_breakdown(related_findings)
+
+        penalty = sum(
+            self._severity_penalty(finding.get("severity", "low"))
+            for finding in related_findings
+        )
+
+        local_score = max(0, min(100, 100 - penalty))
+
+        if overall_score is None:
+            final_score = local_score
+        else:
+            normalized_overall_score = max(0, min(100, overall_score))
+
+            contextual_score = round(
+                (local_score * 0.65) + (normalized_overall_score * 0.35)
+            )
+
+            final_score = min(local_score, contextual_score)
+
+        return {
+            "score": final_score,
+            "findings_count": len(related_findings),
+            "severity": severity,
+        }
+
+    def _severity_breakdown(self, findings: list[dict]) -> dict:
+        breakdown = {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0,
+        }
+
+        for finding in findings:
+            severity = finding.get("severity", "low")
+
+            if severity in breakdown:
+                breakdown[severity] += 1
+
+        return breakdown
 
     def _build_category_scores(self, findings: list[dict]) -> dict:
         categories = {

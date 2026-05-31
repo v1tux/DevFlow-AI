@@ -154,10 +154,7 @@ export default function App() {
           </section>
 
           <section className="container" style={{ marginTop: 24 }}>
-            <QualityBreakdown
-              findings={analysis.findings || []}
-              overallScore={analysis.score ?? null}
-            />
+            <QualityBreakdown metrics={analysis.metrics} />
           </section>
 
           <section className="container" style={{ marginTop: 24 }}>

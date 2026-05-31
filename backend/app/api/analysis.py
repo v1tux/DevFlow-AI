@@ -29,6 +29,19 @@ ai_service = AIService()
 report_service = ReportService()
 stack_detection_service = StackDetectionService()
 
+def build_analysis_response(analysis: Analysis) -> dict:
+    findings = analysis.findings or []
+
+    return {
+        "id": analysis.id,
+        "repository_url": analysis.repository_url,
+        "project_name": analysis.project_name,
+        "score": analysis.score,
+        "summary": analysis.summary,
+        "findings": findings,
+        "metrics": analyzer_service.get_metrics(findings, analysis.score),
+        "created_at": analysis.created_at,
+    }
 
 @router.post("/repository", response_model=AnalysisResponse)
 def analyze_repository(
@@ -65,7 +78,7 @@ def analyze_repository(
         db.commit()
         db.refresh(analysis)
 
-        return analysis
+        return build_analysis_response(analysis)
 
     except Exception as exc:
         db.rollback()
@@ -130,7 +143,7 @@ def analyze_upload(
         db.commit()
         db.refresh(analysis)
 
-        return analysis
+        return build_analysis_response(analysis)
 
     except zipfile.BadZipFile as exc:
         raise HTTPException(status_code=400, detail="Arquivo ZIP inválido.") from exc
@@ -144,13 +157,15 @@ def list_analyses(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    return (
+    analyses = (
         db.query(Analysis)
         .filter(Analysis.user_id == current_user["user_id"])
         .order_by(Analysis.created_at.desc())
         .limit(30)
         .all()
     )
+
+    return [build_analysis_response(analysis) for analysis in analyses]
 
 
 @router.get("/{analysis_id}", response_model=AnalysisResponse)
@@ -171,7 +186,7 @@ def get_analysis(
     if not analysis:
         raise HTTPException(status_code=404, detail="Análise não encontrada.")
 
-    return analysis
+    return build_analysis_response(analysis)
 
 
 @router.get("/{analysis_id}/report")
