@@ -28,8 +28,8 @@ class AnalyzerService:
         findings.extend(self._python_complexity(root, files))
         findings.extend(self._bandit_scan(root))
 
-        penalty = self._calculate_score_penalty(findings)
-        score = max(0, min(100, 100 - penalty))
+        local_metrics = self.get_metrics(findings)
+        score = self.calculate_overall_score_from_metrics(local_metrics, findings)
 
         category_scores = self._build_category_scores(findings)
 
@@ -63,7 +63,45 @@ class AnalyzerService:
             )
             for metric_name, categories in metric_groups.items()
         }
+    
+    def calculate_overall_score_from_metrics(
+        self,
+        metrics: dict,
+        findings: list[dict],
+    ) -> int:
+        weights = {
+            "security": 0.35,
+            "maintainability": 0.25,
+            "architecture": 0.15,
+            "quality": 0.15,
+            "devops": 0.10,
+        }
 
+        weighted_score = 0
+
+        for metric_name, weight in weights.items():
+            metric = metrics.get(metric_name, {})
+            weighted_score += metric.get("score", 0) * weight
+
+        final_score = round(weighted_score)
+
+        severity_totals = self._severity_breakdown(findings)
+        security_score = metrics.get("security", {}).get("score", 100)
+
+        if security_score == 0:
+            final_score = min(final_score, 45)
+
+        if severity_totals["critical"] > 0:
+            final_score = min(final_score, 45)
+
+        if severity_totals["high"] >= 10:
+            final_score = min(final_score, 55)
+
+        if severity_totals["high"] >= 20:
+            final_score = min(final_score, 40)
+
+        return max(0, min(100, final_score))
+    
     def _static_checks(self, root: Path, files: list[Path]) -> list[dict]:
         findings: list[dict] = []
 
