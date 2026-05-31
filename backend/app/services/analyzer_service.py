@@ -28,8 +28,8 @@ class AnalyzerService:
         findings.extend(self._python_complexity(root, files))
         findings.extend(self._bandit_scan(root))
 
-        penalty = self._calculate_score_penalty(findings)
-        score = max(0, min(100, 100 - penalty))
+        local_metrics = self.get_metrics(findings)
+        score = self.calculate_overall_score_from_metrics(local_metrics, findings)
 
         category_scores = self._build_category_scores(findings)
 
@@ -38,6 +38,70 @@ class AnalyzerService:
 
         return score, findings[:80]
 
+    def get_category_scores(self, findings: list[dict]) -> dict:
+        valid_findings = [
+            finding for finding in findings
+            if finding.get("category")
+        ]
+        
+        return self._build_category_scores(valid_findings)
+    
+    def get_metrics(self, findings: list[dict], overall_score: int | None = None) -> dict:
+        metric_groups = {
+            "security": ["security"],
+            "architecture": ["architecture", "repository", "dependencies"],
+            "maintainability": ["complexity", "reliability", "config"],
+            "devops": ["devops"],
+            "quality": ["quality", "documentation", "observability"],
+        }
+
+        return {
+            metric_name: self._build_metric_for_categories(
+                findings,
+                categories,
+                overall_score,
+            )
+            for metric_name, categories in metric_groups.items()
+        }
+    
+    def calculate_overall_score_from_metrics(
+        self,
+        metrics: dict,
+        findings: list[dict],
+    ) -> int:
+        weights = {
+            "security": 0.35,
+            "maintainability": 0.25,
+            "architecture": 0.15,
+            "quality": 0.15,
+            "devops": 0.10,
+        }
+
+        weighted_score = 0
+
+        for metric_name, weight in weights.items():
+            metric = metrics.get(metric_name, {})
+            weighted_score += metric.get("score", 0) * weight
+
+        final_score = round(weighted_score)
+
+        severity_totals = self._severity_breakdown(findings)
+        security_score = metrics.get("security", {}).get("score", 100)
+
+        if security_score == 0:
+            final_score = min(final_score, 45)
+
+        if severity_totals["critical"] > 0:
+            final_score = min(final_score, 45)
+
+        if severity_totals["high"] >= 10:
+            final_score = min(final_score, 55)
+
+        if severity_totals["high"] >= 20:
+            final_score = min(final_score, 40)
+
+        return max(0, min(100, final_score))
+    
     def _static_checks(self, root: Path, files: list[Path]) -> list[dict]:
         findings: list[dict] = []
 
@@ -267,6 +331,59 @@ class AnalyzerService:
             pass
 
         return findings
+
+    def _build_metric_for_categories(
+        self,
+        findings: list[dict],
+        categories: list[str],
+        overall_score: int | None = None,
+    ) -> dict:
+        related_findings = [
+            finding for finding in findings
+            if finding.get("category") in categories
+        ]
+
+        severity = self._severity_breakdown(related_findings)
+
+        penalty = sum(
+            self._severity_penalty(finding.get("severity", "low"))
+            for finding in related_findings
+        )
+
+        local_score = max(0, min(100, 100 - penalty))
+
+        if overall_score is None:
+            final_score = local_score
+        else:
+            normalized_overall_score = max(0, min(100, overall_score))
+
+            contextual_score = round(
+                (local_score * 0.65) + (normalized_overall_score * 0.35)
+            )
+
+            final_score = min(local_score, contextual_score)
+
+        return {
+            "score": final_score,
+            "findings_count": len(related_findings),
+            "severity": severity,
+        }
+
+    def _severity_breakdown(self, findings: list[dict]) -> dict:
+        breakdown = {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0,
+        }
+
+        for finding in findings:
+            severity = finding.get("severity", "low")
+
+            if severity in breakdown:
+                breakdown[severity] += 1
+
+        return breakdown
 
     def _build_category_scores(self, findings: list[dict]) -> dict:
         categories = {
