@@ -147,23 +147,27 @@ export default function App() {
         <ScoreCard analysis={analysis} />
       </section>
 
-      <section className="container" style={{ marginTop: 24 }}>
-        <MetricsCards findings={analysis?.findings || []} />
-      </section>
+      {analysis && (
+  <>
+          <section className="container" style={{ marginTop: 24 }}>
+            <MetricsCards findings={analysis.findings || []} />
+          </section>
 
-      <section className="container" style={{ marginTop: 24 }}>
-        <QualityBreakdown
-          findings={analysis?.findings || []}
-          overallScore={analysis?.score || 0}
-        />
-      </section>
+          <section className="container" style={{ marginTop: 24 }}>
+            <QualityBreakdown
+              findings={analysis.findings || []}
+              overallScore={analysis.score ?? null}
+            />
+          </section>
 
-      <section className="container" style={{ marginTop: 24 }}>
-        <StackOverview findings={analysis?.findings || []} />
-      </section>
+          <section className="container" style={{ marginTop: 24 }}>
+            <StackOverview findings={analysis.findings || []} />
+          </section>
+        </>
+      )}
 
       <section className="container grid" style={{ marginTop: 24 }}>
-        <FindingList findings={analysis?.findings || []} />
+        {analysis && <FindingList findings={analysis.findings || []} />}
 
         <div className="card">
           <h2>Histórico</h2>
