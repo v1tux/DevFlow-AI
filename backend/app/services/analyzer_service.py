@@ -38,6 +38,14 @@ class AnalyzerService:
 
         return score, findings[:80]
 
+    def get_category_scores(self, findings: list[dict]) -> dict:
+        valid_findings = [
+            finding for finding in findings
+            if finding.get("category")
+        ]
+
+        return self._build_category_scores(valid_findings)
+
     def _static_checks(self, root: Path, files: list[Path]) -> list[dict]:
         findings: list[dict] = []
 
