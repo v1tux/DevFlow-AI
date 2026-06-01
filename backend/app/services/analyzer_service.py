@@ -543,32 +543,47 @@ class AnalyzerService:
             "complexity": 4,
         }
 
-        unique_findings: list[dict] = []
-        seen: set[tuple[str | None, str | None, str | None]] = set()
+        grouped_findings: dict[
+            tuple[str | None, str | None, str | None, str | None],
+            dict,
+        ] = {}
 
         for finding in findings:
             key = (
                 finding.get("category"),
                 finding.get("severity"),
                 finding.get("message"),
+                finding.get("recommendation"),
             )
 
-            if key in seen:
+            current_file = finding.get("file")
+
+            if key not in grouped_findings:
+                grouped_finding = finding.copy()
+                grouped_finding["occurrences"] = 1
+                grouped_finding["files"] = [current_file] if current_file else []
+                grouped_findings[key] = grouped_finding
                 continue
 
-            seen.add(key)
-            unique_findings.append(finding)
+            grouped_finding = grouped_findings[key]
+            grouped_finding["occurrences"] = grouped_finding.get("occurrences", 1) + 1
 
-        unique_findings.sort(
+            if current_file and current_file not in grouped_finding.get("files", []):
+                grouped_finding.setdefault("files", []).append(current_file)
+
+        ranked_findings = list(grouped_findings.values())
+
+        ranked_findings.sort(
             key=lambda finding: (
                 severity_rank.get(finding.get("severity"), 99),
                 source_rank.get(finding.get("source"), 99),
                 finding.get("category") or "",
+                -(finding.get("occurrences") or 1),
                 finding.get("file") or "",
             )
         )
 
-        return unique_findings[:limit]
+        return ranked_findings[:limit]
 
     def _finding(
         self,

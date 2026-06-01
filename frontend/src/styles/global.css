@@ -389,3 +389,21 @@ a {
   font-size: 0.9rem;
   line-height: 1.45;
 }
+
+.finding-occurrences {
+  margin: 8px 0;
+  color: #fbbf24;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.finding-detail ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.finding-detail li {
+  margin-bottom: 4px;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+}

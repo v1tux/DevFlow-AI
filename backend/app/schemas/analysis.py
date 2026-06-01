@@ -21,6 +21,8 @@ class Finding(BaseModel):
     confidence: str | None = None
     evidence: str | None = None
     source: str | None = None
+    occurrences: int | None = None
+    files: list[str] | None = None
 
 
 class MetricSeverityBreakdown(BaseModel):

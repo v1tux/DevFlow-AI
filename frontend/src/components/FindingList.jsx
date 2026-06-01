@@ -57,6 +57,12 @@ export function FindingList({ findings = [] }) {
 
           <strong>{finding.file || "Projeto"}</strong>
 
+          {finding.occurrences > 1 && (
+            <p className="finding-occurrences">
+              Encontrado em {finding.occurrences} ocorrência(s).
+            </p>
+          )}
+
           <p>{finding.message}</p>
 
           <div className="finding-meta">
@@ -77,6 +83,21 @@ export function FindingList({ findings = [] }) {
             <div className="finding-detail">
               <b>Evidência:</b>
               <p>{finding.evidence}</p>
+            </div>
+          )}
+
+          {finding.files?.length > 1 && (
+            <div className="finding-detail">
+              <b>Arquivos impactados:</b>
+              <ul>
+                {finding.files.slice(0, 5).map((file) => (
+                  <li key={file}>{file}</li>
+                ))}
+              </ul>
+
+              {finding.files.length > 5 && (
+                <p>+{finding.files.length - 5} arquivo(s) adicional(is).</p>
+              )}
             </div>
           )}
 
