@@ -327,3 +327,28 @@ a {
   font-size: 13px;
   font-weight: 700;
 }
+
+.score-explanation {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.score-explanation h3 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+
+.score-explanation ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.score-explanation li {
+  margin-bottom: 6px;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}

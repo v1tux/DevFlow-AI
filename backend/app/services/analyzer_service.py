@@ -102,6 +102,47 @@ class AnalyzerService:
 
         return max(0, min(100, final_score))
     
+    def get_score_explanation(
+        self,
+        metrics: dict,
+        findings: list[dict],
+        score: int,
+    ) -> list[str]:
+        explanations: list[str] = []
+        severity_totals = self._severity_breakdown(findings)
+        security_score = metrics.get("security", {}).get("score", 100)
+
+        if security_score == 0:
+            explanations.append(
+                "A nota foi fortemente impactada porque a métrica de segurança ficou em 0."
+            )
+
+        if severity_totals["critical"] > 0:
+            explanations.append(
+                f"Foram encontrados {severity_totals['critical']} achado(s) crítico(s), limitando a nota máxima."
+            )
+
+        if severity_totals["high"] >= 20:
+            explanations.append(
+                f"Foram encontrados {severity_totals['high']} achado(s) de alta severidade, mantendo o projeto em nível crítico."
+            )
+        elif severity_totals["high"] >= 10:
+            explanations.append(
+                f"Foram encontrados {severity_totals['high']} achado(s) de alta severidade, reduzindo a confiança geral da análise."
+            )
+
+        if score < 50:
+            explanations.append(
+                "Mesmo com algumas áreas aceitáveis, o risco global do projeto ainda é considerado alto."
+            )
+
+        if not explanations:
+            explanations.append(
+                "A nota geral foi calculada com base na média ponderada das métricas técnicas."
+            )
+
+        return explanations
+    
     def _static_checks(self, root: Path, files: list[Path]) -> list[dict]:
         findings: list[dict] = []
 
