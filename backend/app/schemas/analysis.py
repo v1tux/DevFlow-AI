@@ -43,6 +43,7 @@ class AnalysisResponse(BaseModel):
     summary: str
     findings: list[Finding]
     metrics: dict[str, CategoryMetric] | None = None
+    score_explanation: list[str] = Field(default_factory=list)
     created_at: datetime
 
     class Config:

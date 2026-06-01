@@ -31,6 +31,7 @@ stack_detection_service = StackDetectionService()
 
 def build_analysis_response(analysis: Analysis) -> dict:
     findings = analysis.findings or []
+    metrics = analyzer_service.get_metrics(findings, analysis.score)
 
     return {
         "id": analysis.id,
@@ -39,7 +40,12 @@ def build_analysis_response(analysis: Analysis) -> dict:
         "score": analysis.score,
         "summary": analysis.summary,
         "findings": findings,
-        "metrics": analyzer_service.get_metrics(findings, analysis.score),
+        "metrics": metrics,
+        "score_explanation": analyzer_service.get_score_explanation(
+            metrics,
+            findings,
+            analysis.score,
+        ),
         "created_at": analysis.created_at,
     }
 

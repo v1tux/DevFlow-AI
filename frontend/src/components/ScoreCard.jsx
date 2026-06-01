@@ -23,6 +23,7 @@ export function ScoreCard({ analysis }) {
   }
 
   const status = getScoreStatus(analysis.score);
+  const scoreExplanation = analysis.score_explanation || [];
 
   return (
     <div className="card">
@@ -39,6 +40,18 @@ export function ScoreCard({ analysis }) {
       </div>
 
       <p>{analysis.summary}</p>
+
+      {scoreExplanation.length > 0 && (
+        <div className="score-explanation">
+          <h3>Por que essa nota?</h3>
+
+          <ul>
+            {scoreExplanation.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <button
         className="link-button"
