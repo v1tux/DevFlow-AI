@@ -36,7 +36,9 @@ class AnalyzerService:
         for finding in findings:
             finding["category_score"] = category_scores.get(finding.get("category"), 100)
 
-        return score, findings[:80]
+        ranked_findings = self._rank_and_limit_findings(findings)
+
+        return score, ranked_findings
 
     def get_category_scores(self, findings: list[dict]) -> dict:
         valid_findings = [
@@ -524,6 +526,49 @@ class AnalyzerService:
             "medium": "Média prioridade",
             "low": "Baixa prioridade",
         }.get(severity, "Revisar")
+    
+    def _rank_and_limit_findings(self, findings: list[dict], limit: int = 80) -> list[dict]:
+        severity_rank = {
+            "critical": 0,
+            "high": 1,
+            "medium": 2,
+            "low": 3,
+        }
+
+        source_rank = {
+            "secret_detector": 0,
+            "bandit": 1,
+            "sensitive_field_detector": 2,
+            "static_check": 3,
+            "complexity": 4,
+        }
+
+        unique_findings: list[dict] = []
+        seen: set[tuple[str | None, str | None, str | None]] = set()
+
+        for finding in findings:
+            key = (
+                finding.get("category"),
+                finding.get("severity"),
+                finding.get("message"),
+            )
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+            unique_findings.append(finding)
+
+        unique_findings.sort(
+            key=lambda finding: (
+                severity_rank.get(finding.get("severity"), 99),
+                source_rank.get(finding.get("source"), 99),
+                finding.get("category") or "",
+                finding.get("file") or "",
+            )
+        )
+
+        return unique_findings[:limit]
 
     def _finding(
         self,
