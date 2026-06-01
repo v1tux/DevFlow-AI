@@ -1,6 +1,21 @@
 import { ShieldCheck } from "lucide-react";
 import { downloadAnalysisReport } from "../services/api";
 
+function getRepositoryAuthor(repositoryUrl) {
+  if (!repositoryUrl) {
+    return null;
+  }
+
+  try {
+    const url = new URL(repositoryUrl);
+    const parts = url.pathname.split("/").filter(Boolean);
+
+    return parts[0] || null;
+  } catch {
+    return null;
+  }
+}
+
 function getScoreStatus(score) {
   if (score >= 85) return { label: "Excelente", className: "score-good" };
   if (score >= 70) return { label: "Boa", className: "score-ok" };
@@ -24,11 +39,18 @@ export function ScoreCard({ analysis }) {
 
   const status = getScoreStatus(analysis.score);
   const scoreExplanation = analysis.score_explanation || [];
+  const repositoryAuthor = getRepositoryAuthor(analysis.repository_url);
 
   return (
     <div className="card">
       <div className="row">
-        <h2>{analysis.project_name}</h2>
+        <div>
+          <h2>{analysis.project_name}</h2>
+
+          {repositoryAuthor && (
+            <p className="project-author">por {repositoryAuthor}</p>
+          )}
+        </div>
         <ShieldCheck />
       </div>
 
