@@ -18,6 +18,9 @@ class Finding(BaseModel):
     type: str | None = None
     scores: dict[str, Any] | None = None
     category_score: int | None = None
+    confidence: str | None = None
+    evidence: str | None = None
+    source: str | None = None
 
 
 class MetricSeverityBreakdown(BaseModel):

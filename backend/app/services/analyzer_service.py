@@ -240,15 +240,37 @@ class AnalyzerService:
                 )
 
             if "password" in lower and ("=" in content or ":" in content):
-                findings.append(
-                    self._finding(
-                        "security",
-                        "high",
-                        relative,
-                        "Possível credencial ou senha hardcoded.",
-                        "Use variáveis de ambiente ou secret manager.",
-                    )
+                is_schema_or_model = any(
+                    keyword in relative.lower()
+                    for keyword in ["schema", "schemas", "model", "models", "dto", "request"]
                 )
+
+                if is_schema_or_model:
+                    findings.append(
+                        self._finding(
+                            "security",
+                            "medium",
+                            relative,
+                            "Campo sensível relacionado a senha identificado.",
+                            "Garanta que senhas sejam hasheadas, nunca retornadas em respostas da API e nunca registradas em logs.",
+                            confidence="medium",
+                            evidence="O termo 'password' aparece em arquivo de schema/modelo, indicando possível campo sensível.",
+                            source="sensitive_field_detector",
+                        )
+                    )
+                else:
+                    findings.append(
+                        self._finding(
+                            "security",
+                            "high",
+                            relative,
+                            "Possível credencial ou senha hardcoded.",
+                            "Use variáveis de ambiente ou secret manager.",
+                            confidence="medium",
+                            evidence="O termo 'password' aparece junto de atribuição ou estrutura chave/valor.",
+                            source="secret_detector",
+                        )
+                    )
 
             if "secret_key" in lower or "api_key" in lower or "access_token" in lower:
                 findings.append(
@@ -510,6 +532,9 @@ class AnalyzerService:
         file: str | None,
         message: str,
         recommendation: str,
+        confidence: str = "medium",
+        evidence: str | None = None,
+        source: str = "static_check",
     ) -> dict:
         return {
             "category": category,
@@ -518,4 +543,7 @@ class AnalyzerService:
             "message": message,
             "recommendation": recommendation,
             "priority": self._priority_from_severity(severity),
+            "confidence": confidence,
+            "evidence": evidence,
+            "source": source,
         }
