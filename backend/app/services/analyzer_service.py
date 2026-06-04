@@ -144,6 +144,50 @@ class AnalyzerService:
             )
 
         return explanations
+
+    def _has_literal_assignment(self, content: str, keywords: list[str]) -> bool:
+        lowered_keywords = [keyword.lower() for keyword in keywords]
+
+        for line in content.splitlines():
+            clean_line = line.strip()
+            lower_line = clean_line.lower()
+
+            if not clean_line or clean_line.startswith("#"):
+                continue
+
+            has_keyword = any(keyword in lower_line for keyword in lowered_keywords)
+            if not has_keyword:
+                continue
+
+            has_assignment = "=" in clean_line or ":" in clean_line
+            has_literal_value = '"' in clean_line or "'" in clean_line
+
+            if has_assignment and has_literal_value:
+                return True
+
+        return False
+
+    def _uses_environment_variable(self, content: str) -> bool:
+        environment_patterns = [
+            "os.getenv",
+            "os.environ",
+            "getenv(",
+            "settings.",
+            "config.",
+            "env(",
+        ]
+
+        lower = content.lower()
+
+        return any(pattern in lower for pattern in environment_patterns)
+
+    def _is_schema_or_model_file(self, relative_path: str) -> bool:
+        lower_path = relative_path.lower()
+
+        return any(
+            keyword in lower_path
+            for keyword in ["schema", "schemas", "model", "models", "dto", "request"]
+        )
     
     def _static_checks(self, root: Path, files: list[Path]) -> list[dict]:
         findings: list[dict] = []
@@ -241,49 +285,67 @@ class AnalyzerService:
                     )
                 )
 
-            if "password" in lower and ("=" in content or ":" in content):
-                is_schema_or_model = any(
-                    keyword in relative.lower()
-                    for keyword in ["schema", "schemas", "model", "models", "dto", "request"]
-                )
+            sensitive_keywords = [
+                "password",
+                "secret_key",
+                "api_key",
+                "access_token",
+                "refresh_token",
+                "private_key",
+                "client_secret",
+            ]
 
-                if is_schema_or_model:
+            has_sensitive_keyword = any(
+                keyword in lower for keyword in sensitive_keywords
+            )
+
+            if has_sensitive_keyword:
+                uses_env = self._uses_environment_variable(content)
+                has_literal_secret = self._has_literal_assignment(content, sensitive_keywords)
+                is_schema_or_model = self._is_schema_or_model_file(relative)
+
+                if uses_env and not has_literal_secret:
+                    continue
+
+                if is_schema_or_model and not has_literal_secret:
                     findings.append(
                         self._finding(
                             "security",
                             "medium",
                             relative,
-                            "Campo sensível relacionado a senha identificado.",
-                            "Garanta que senhas sejam hasheadas, nunca retornadas em respostas da API e nunca registradas em logs.",
+                            "Campo sensível identificado em schema/modelo.",
+                            "Garanta que campos sensíveis sejam validados, protegidos e nunca retornados em respostas públicas.",
                             confidence="medium",
-                            evidence="O termo 'password' aparece em arquivo de schema/modelo, indicando possível campo sensível.",
+                            evidence="Termo sensível encontrado em arquivo de schema/modelo, sem evidência clara de segredo hardcoded.",
                             source="sensitive_field_detector",
+                        )
+                    )
+                elif has_literal_secret:
+                    findings.append(
+                        self._finding(
+                            "security",
+                            "high",
+                            relative,
+                            "Possível segredo hardcoded encontrado.",
+                            "Remova valores sensíveis do código e use variáveis de ambiente ou secret manager.",
+                            confidence="high",
+                            evidence="Termo sensível encontrado com atribuição direta para valor literal.",
+                            source="secret_detector",
                         )
                     )
                 else:
                     findings.append(
                         self._finding(
                             "security",
-                            "high",
+                            "medium",
                             relative,
-                            "Possível credencial ou senha hardcoded.",
-                            "Use variáveis de ambiente ou secret manager.",
-                            confidence="medium",
-                            evidence="O termo 'password' aparece junto de atribuição ou estrutura chave/valor.",
-                            source="secret_detector",
+                            "Uso de termo sensível encontrado.",
+                            "Revise se o valor sensível está sendo tratado de forma segura.",
+                            confidence="low",
+                            evidence="Termo sensível encontrado, mas sem evidência suficiente de segredo hardcoded.",
+                            source="sensitive_field_detector",
                         )
                     )
-
-            if "secret_key" in lower or "api_key" in lower or "access_token" in lower:
-                findings.append(
-                    self._finding(
-                        "security",
-                        "high",
-                        relative,
-                        "Possível chave, token ou segredo hardcoded.",
-                        "Remova segredos do código e use variáveis de ambiente.",
-                    )
-                )
 
             if "todo" in lower or "fixme" in lower:
                 findings.append(
