@@ -200,6 +200,8 @@ class AnalyzerService:
         requirements = root / "requirements.txt"
         pyproject = root / "pyproject.toml"
         package_json = root / "package.json"
+        dockerignore = root / ".dockerignore"
+        github_workflows = root / ".github" / "workflows"
 
         if not readme.exists():
             findings.append(
@@ -234,6 +236,20 @@ class AnalyzerService:
                 )
             )
 
+        if not dockerignore.exists():
+            findings.append(
+                self._finding(
+                    "devops",
+                    "low",
+                    ".dockerignore",
+                    ".dockerignore ausente.",
+                    "Adicione .dockerignore para evitar copiar caches, ambientes virtuais, node_modules e arquivos sensíveis para a imagem Docker.",
+                    confidence="high",
+                    evidence="Arquivo .dockerignore não encontrado na raiz do projeto.",
+                    source="devops_check",
+                )
+            )   
+
         if not env_example.exists():
             findings.append(
                 self._finding(
@@ -242,6 +258,20 @@ class AnalyzerService:
                     ".env.example",
                     "Arquivo .env.example ausente.",
                     "Documente variáveis de ambiente sem expor segredos.",
+                )
+            )
+
+        if not github_workflows.exists():
+            findings.append(
+                self._finding(
+                    "devops",
+                    "medium",
+                    ".github/workflows",
+                    "Pipeline de CI/CD não encontrado.",
+                    "Adicione GitHub Actions ou outro pipeline para executar testes, lint e validações antes do deploy.",
+                    confidence="medium",
+                    evidence="Diretório .github/workflows não encontrado.",
+                    source="devops_check",
                 )
             )
 
@@ -257,6 +287,7 @@ class AnalyzerService:
             )
 
         has_dependency_file = requirements.exists() or pyproject.exists() or package_json.exists()
+
         if not has_dependency_file:
             findings.append(
                 self._finding(
