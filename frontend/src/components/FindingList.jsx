@@ -22,6 +22,8 @@ function getSourceLabel(source) {
     sensitive_field_detector: "Detector de campo sensível",
     bandit: "Scanner de segurança",
     complexity: "Complexidade de código",
+    devops_check: "Análise DevOps",
+    dockerfile_check: "Análise de Dockerfile",
   }[source] || source || "Análise técnica";
 }
 

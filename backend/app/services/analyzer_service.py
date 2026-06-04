@@ -25,6 +25,7 @@ class AnalyzerService:
             return 45, findings
 
         findings.extend(self._static_checks(root, files))
+        findings.extend(self._dockerfile_quality_checks(root))
         findings.extend(self._python_complexity(root, files))
         findings.extend(self._bandit_scan(root))
 
@@ -242,10 +243,10 @@ class AnalyzerService:
                     "devops",
                     "low",
                     ".dockerignore",
-                    ".dockerignore ausente.",
-                    "Adicione .dockerignore para evitar copiar caches, ambientes virtuais, node_modules e arquivos sensíveis para a imagem Docker.",
+                    "Arquivo .dockerignore ausente.",
+                    "Adicione um .dockerignore para evitar copiar caches, ambientes virtuais, node_modules, arquivos .env e dados sensíveis para a imagem Docker.",
                     confidence="high",
-                    evidence="Arquivo .dockerignore não encontrado na raiz do projeto.",
+                    evidence="O arquivo .dockerignore não foi encontrado na raiz do projeto.",
                     source="devops_check",
                 )
             )   
@@ -430,6 +431,99 @@ class AnalyzerService:
                         relative,
                         "Referência fixa a localhost encontrada.",
                         "Prefira configurar URLs por variável de ambiente para facilitar deploy.",
+                    )
+                )
+
+        return findings
+    
+    def _dockerfile_quality_checks(self, root: Path) -> list[dict]:
+        findings: list[dict] = []
+        dockerfile = root / "Dockerfile"
+
+        if not dockerfile.exists():
+            return findings
+
+        content = safe_read(dockerfile)
+        lower = content.lower()
+
+        if "from" in lower and ":latest" in lower:
+            findings.append(
+                self._finding(
+                    "devops",
+                    "medium",
+                    "Dockerfile",
+                    "Dockerfile ausente; não foi possível avaliar a qualidade da imagem.",
+                    "Adicione um Dockerfile com imagem base versionada, WORKDIR, instalação de dependências, usuário não-root e comando de inicialização.",
+                    confidence="high",
+                    evidence="Nenhum arquivo Dockerfile foi encontrado na raiz do projeto.",
+                    source="devops_check",
+                )
+            )
+
+        if "workdir" not in lower:
+            findings.append(
+                self._finding(
+                    "devops",
+                    "low",
+                    "Dockerfile",
+                    "Dockerfile sem WORKDIR definido.",
+                    "Defina WORKDIR para evitar caminhos implícitos e melhorar previsibilidade do build.",
+                    confidence="high",
+                    evidence="Nenhuma instrução WORKDIR encontrada no Dockerfile.",
+                    source="dockerfile_check",
+                )
+            )
+
+        if "cmd" not in lower and "entrypoint" not in lower:
+            findings.append(
+                self._finding(
+                    "devops",
+                    "medium",
+                    "Dockerfile",
+                    "Dockerfile sem CMD ou ENTRYPOINT.",
+                    "Defina CMD ou ENTRYPOINT para deixar claro como a aplicação deve iniciar.",
+                    confidence="high",
+                    evidence="Nenhuma instrução CMD ou ENTRYPOINT encontrada no Dockerfile.",
+                    source="dockerfile_check",
+                )
+            )
+
+        if "user " not in lower:
+            findings.append(
+                self._finding(
+                    "security",
+                    "medium",
+                    "Dockerfile",
+                    "Container aparenta executar como root.",
+                    "Considere criar e utilizar um usuário não-root no Dockerfile para reduzir riscos em runtime.",
+                    confidence="medium",
+                    evidence="Nenhuma instrução USER encontrada no Dockerfile.",
+                    source="dockerfile_check",
+                )
+            )
+
+        if "copy . ." in lower and (
+            "requirements.txt" in lower or "package.json" in lower
+        ):
+            copy_all_index = lower.find("copy . .")
+            requirements_index = lower.find("requirements.txt")
+            package_index = lower.find("package.json")
+
+            dependency_index_candidates = [
+                index for index in [requirements_index, package_index] if index != -1
+            ]
+
+            if dependency_index_candidates and copy_all_index < min(dependency_index_candidates):
+                findings.append(
+                    self._finding(
+                        "devops",
+                        "low",
+                        "Dockerfile",
+                        "Dockerfile pode estar copiando todo o projeto antes das dependências.",
+                        "Copie arquivos de dependência primeiro para aproveitar melhor o cache de build.",
+                        confidence="low",
+                        evidence="Encontrado COPY . . antes da referência a arquivo de dependências.",
+                        source="dockerfile_check",
                     )
                 )
 
