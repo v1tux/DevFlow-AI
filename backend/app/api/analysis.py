@@ -81,7 +81,6 @@ def analyze_repository(
     try:
         repository_metadata = extract_repository_metadata(str(payload.repository_url))
         project_name = repository_metadata["project_name"]
-        project_author = repository_metadata["project_author"]
         score, findings = analyzer_service.analyze(repo_path)
         summary = ai_service.generate_summary(project_name, findings, score)
         detected_stack = stack_detection_service.detect(repo_path)
