@@ -1,3 +1,4 @@
+from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from pathlib import Path
@@ -29,6 +30,26 @@ ai_service = AIService()
 report_service = ReportService()
 stack_detection_service = StackDetectionService()
 
+def extract_repository_metadata(repository_url: str) -> dict:
+    parsed_url = urlparse(repository_url)
+    path_parts = parsed_url.path.strip("/").split("/")
+
+    if len(path_parts) < 2:
+        return {
+            "project_name": "Repositório GitHub",
+            "project_author": "Autor não identificado",
+        }
+
+    owner = path_parts[0]
+    repo_name = path_parts[1].replace(".git", "")
+
+    display_name = repo_name.replace("-", " ").replace("_", " ").strip()
+
+    return {
+        "project_name": display_name,
+        "project_author": owner,
+    }
+
 def build_analysis_response(analysis: Analysis) -> dict:
     findings = analysis.findings or []
     metrics = analyzer_service.get_metrics(findings, analysis.score)
@@ -58,7 +79,8 @@ def analyze_repository(
     repo_path = repo_service.clone(str(payload.repository_url))
 
     try:
-        project_name = repo_path.name
+        repository_metadata = extract_repository_metadata(str(payload.repository_url))
+        project_name = repository_metadata["project_name"]
         score, findings = analyzer_service.analyze(repo_path)
         summary = ai_service.generate_summary(project_name, findings, score)
         detected_stack = stack_detection_service.detect(repo_path)

@@ -25,6 +25,7 @@ class AnalyzerService:
             return 45, findings
 
         findings.extend(self._static_checks(root, files))
+        findings.extend(self._dockerfile_quality_checks(root))
         findings.extend(self._python_complexity(root, files))
         findings.extend(self._bandit_scan(root))
 
@@ -36,7 +37,9 @@ class AnalyzerService:
         for finding in findings:
             finding["category_score"] = category_scores.get(finding.get("category"), 100)
 
-        return score, findings[:80]
+        ranked_findings = self._rank_and_limit_findings(findings)
+
+        return score, ranked_findings
 
     def get_category_scores(self, findings: list[dict]) -> dict:
         valid_findings = [
@@ -142,6 +145,50 @@ class AnalyzerService:
             )
 
         return explanations
+
+    def _has_literal_assignment(self, content: str, keywords: list[str]) -> bool:
+        lowered_keywords = [keyword.lower() for keyword in keywords]
+
+        for line in content.splitlines():
+            clean_line = line.strip()
+            lower_line = clean_line.lower()
+
+            if not clean_line or clean_line.startswith("#"):
+                continue
+
+            has_keyword = any(keyword in lower_line for keyword in lowered_keywords)
+            if not has_keyword:
+                continue
+
+            has_assignment = "=" in clean_line or ":" in clean_line
+            has_literal_value = '"' in clean_line or "'" in clean_line
+
+            if has_assignment and has_literal_value:
+                return True
+
+        return False
+
+    def _uses_environment_variable(self, content: str) -> bool:
+        environment_patterns = [
+            "os.getenv",
+            "os.environ",
+            "getenv(",
+            "settings.",
+            "config.",
+            "env(",
+        ]
+
+        lower = content.lower()
+
+        return any(pattern in lower for pattern in environment_patterns)
+
+    def _is_schema_or_model_file(self, relative_path: str) -> bool:
+        lower_path = relative_path.lower()
+
+        return any(
+            keyword in lower_path
+            for keyword in ["schema", "schemas", "model", "models", "dto", "request"]
+        )
     
     def _static_checks(self, root: Path, files: list[Path]) -> list[dict]:
         findings: list[dict] = []
@@ -154,6 +201,8 @@ class AnalyzerService:
         requirements = root / "requirements.txt"
         pyproject = root / "pyproject.toml"
         package_json = root / "package.json"
+        dockerignore = root / ".dockerignore"
+        github_workflows = root / ".github" / "workflows"
 
         if not readme.exists():
             findings.append(
@@ -188,6 +237,20 @@ class AnalyzerService:
                 )
             )
 
+        if not dockerignore.exists():
+            findings.append(
+                self._finding(
+                    "devops",
+                    "low",
+                    ".dockerignore",
+                    "Arquivo .dockerignore ausente.",
+                    "Adicione um .dockerignore para evitar copiar caches, ambientes virtuais, node_modules, arquivos .env e dados sensíveis para a imagem Docker.",
+                    confidence="high",
+                    evidence="O arquivo .dockerignore não foi encontrado na raiz do projeto.",
+                    source="devops_check",
+                )
+            )   
+
         if not env_example.exists():
             findings.append(
                 self._finding(
@@ -196,6 +259,20 @@ class AnalyzerService:
                     ".env.example",
                     "Arquivo .env.example ausente.",
                     "Documente variáveis de ambiente sem expor segredos.",
+                )
+            )
+
+        if not github_workflows.exists():
+            findings.append(
+                self._finding(
+                    "devops",
+                    "medium",
+                    ".github/workflows",
+                    "Pipeline de CI/CD não encontrado.",
+                    "Adicione GitHub Actions ou outro pipeline para executar testes, lint e validações antes do deploy.",
+                    confidence="medium",
+                    evidence="Diretório .github/workflows não encontrado.",
+                    source="devops_check",
                 )
             )
 
@@ -211,6 +288,7 @@ class AnalyzerService:
             )
 
         has_dependency_file = requirements.exists() or pyproject.exists() or package_json.exists()
+
         if not has_dependency_file:
             findings.append(
                 self._finding(
@@ -239,27 +317,67 @@ class AnalyzerService:
                     )
                 )
 
-            if "password" in lower and ("=" in content or ":" in content):
-                findings.append(
-                    self._finding(
-                        "security",
-                        "high",
-                        relative,
-                        "Possível credencial ou senha hardcoded.",
-                        "Use variáveis de ambiente ou secret manager.",
-                    )
-                )
+            sensitive_keywords = [
+                "password",
+                "secret_key",
+                "api_key",
+                "access_token",
+                "refresh_token",
+                "private_key",
+                "client_secret",
+            ]
 
-            if "secret_key" in lower or "api_key" in lower or "access_token" in lower:
-                findings.append(
-                    self._finding(
-                        "security",
-                        "high",
-                        relative,
-                        "Possível chave, token ou segredo hardcoded.",
-                        "Remova segredos do código e use variáveis de ambiente.",
+            has_sensitive_keyword = any(
+                keyword in lower for keyword in sensitive_keywords
+            )
+
+            if has_sensitive_keyword:
+                uses_env = self._uses_environment_variable(content)
+                has_literal_secret = self._has_literal_assignment(content, sensitive_keywords)
+                is_schema_or_model = self._is_schema_or_model_file(relative)
+
+                if uses_env and not has_literal_secret:
+                    continue
+
+                if is_schema_or_model and not has_literal_secret:
+                    findings.append(
+                        self._finding(
+                            "security",
+                            "medium",
+                            relative,
+                            "Campo sensível identificado em schema/modelo.",
+                            "Garanta que campos sensíveis sejam validados, protegidos e nunca retornados em respostas públicas.",
+                            confidence="medium",
+                            evidence="Termo sensível encontrado em arquivo de schema/modelo, sem evidência clara de segredo hardcoded.",
+                            source="sensitive_field_detector",
+                        )
                     )
-                )
+                elif has_literal_secret:
+                    findings.append(
+                        self._finding(
+                            "security",
+                            "high",
+                            relative,
+                            "Possível segredo hardcoded encontrado.",
+                            "Remova valores sensíveis do código e use variáveis de ambiente ou secret manager.",
+                            confidence="high",
+                            evidence="Termo sensível encontrado com atribuição direta para valor literal.",
+                            source="secret_detector",
+                        )
+                    )
+                else:
+                    findings.append(
+                        self._finding(
+                            "security",
+                            "medium",
+                            relative,
+                            "Uso de termo sensível encontrado.",
+                            "Revise se o valor sensível está sendo tratado de forma segura.",
+                            confidence="low",
+                            evidence="Termo sensível encontrado, mas sem evidência suficiente de segredo hardcoded.",
+                            source="sensitive_field_detector",
+                        )
+                    )
 
             if "todo" in lower or "fixme" in lower:
                 findings.append(
@@ -313,6 +431,99 @@ class AnalyzerService:
                         relative,
                         "Referência fixa a localhost encontrada.",
                         "Prefira configurar URLs por variável de ambiente para facilitar deploy.",
+                    )
+                )
+
+        return findings
+    
+    def _dockerfile_quality_checks(self, root: Path) -> list[dict]:
+        findings: list[dict] = []
+        dockerfile = root / "Dockerfile"
+
+        if not dockerfile.exists():
+            return findings
+
+        content = safe_read(dockerfile)
+        lower = content.lower()
+
+        if "from" in lower and ":latest" in lower:
+            findings.append(
+                self._finding(
+                    "devops",
+                    "medium",
+                    "Dockerfile",
+                    "Dockerfile ausente; não foi possível avaliar a qualidade da imagem.",
+                    "Adicione um Dockerfile com imagem base versionada, WORKDIR, instalação de dependências, usuário não-root e comando de inicialização.",
+                    confidence="high",
+                    evidence="Nenhum arquivo Dockerfile foi encontrado na raiz do projeto.",
+                    source="devops_check",
+                )
+            )
+
+        if "workdir" not in lower:
+            findings.append(
+                self._finding(
+                    "devops",
+                    "low",
+                    "Dockerfile",
+                    "Dockerfile sem WORKDIR definido.",
+                    "Defina WORKDIR para evitar caminhos implícitos e melhorar previsibilidade do build.",
+                    confidence="high",
+                    evidence="Nenhuma instrução WORKDIR encontrada no Dockerfile.",
+                    source="dockerfile_check",
+                )
+            )
+
+        if "cmd" not in lower and "entrypoint" not in lower:
+            findings.append(
+                self._finding(
+                    "devops",
+                    "medium",
+                    "Dockerfile",
+                    "Dockerfile sem CMD ou ENTRYPOINT.",
+                    "Defina CMD ou ENTRYPOINT para deixar claro como a aplicação deve iniciar.",
+                    confidence="high",
+                    evidence="Nenhuma instrução CMD ou ENTRYPOINT encontrada no Dockerfile.",
+                    source="dockerfile_check",
+                )
+            )
+
+        if "user " not in lower:
+            findings.append(
+                self._finding(
+                    "security",
+                    "medium",
+                    "Dockerfile",
+                    "Container aparenta executar como root.",
+                    "Considere criar e utilizar um usuário não-root no Dockerfile para reduzir riscos em runtime.",
+                    confidence="medium",
+                    evidence="Nenhuma instrução USER encontrada no Dockerfile.",
+                    source="dockerfile_check",
+                )
+            )
+
+        if "copy . ." in lower and (
+            "requirements.txt" in lower or "package.json" in lower
+        ):
+            copy_all_index = lower.find("copy . .")
+            requirements_index = lower.find("requirements.txt")
+            package_index = lower.find("package.json")
+
+            dependency_index_candidates = [
+                index for index in [requirements_index, package_index] if index != -1
+            ]
+
+            if dependency_index_candidates and copy_all_index < min(dependency_index_candidates):
+                findings.append(
+                    self._finding(
+                        "devops",
+                        "low",
+                        "Dockerfile",
+                        "Dockerfile pode estar copiando todo o projeto antes das dependências.",
+                        "Copie arquivos de dependência primeiro para aproveitar melhor o cache de build.",
+                        confidence="low",
+                        evidence="Encontrado COPY . . antes da referência a arquivo de dependências.",
+                        source="dockerfile_check",
                     )
                 )
 
@@ -502,6 +713,64 @@ class AnalyzerService:
             "medium": "Média prioridade",
             "low": "Baixa prioridade",
         }.get(severity, "Revisar")
+    
+    def _rank_and_limit_findings(self, findings: list[dict], limit: int = 80) -> list[dict]:
+        severity_rank = {
+            "critical": 0,
+            "high": 1,
+            "medium": 2,
+            "low": 3,
+        }
+
+        source_rank = {
+            "secret_detector": 0,
+            "bandit": 1,
+            "sensitive_field_detector": 2,
+            "static_check": 3,
+            "complexity": 4,
+        }
+
+        grouped_findings: dict[
+            tuple[str | None, str | None, str | None, str | None],
+            dict,
+        ] = {}
+
+        for finding in findings:
+            key = (
+                finding.get("category"),
+                finding.get("severity"),
+                finding.get("message"),
+                finding.get("recommendation"),
+            )
+
+            current_file = finding.get("file")
+
+            if key not in grouped_findings:
+                grouped_finding = finding.copy()
+                grouped_finding["occurrences"] = 1
+                grouped_finding["files"] = [current_file] if current_file else []
+                grouped_findings[key] = grouped_finding
+                continue
+
+            grouped_finding = grouped_findings[key]
+            grouped_finding["occurrences"] = grouped_finding.get("occurrences", 1) + 1
+
+            if current_file and current_file not in grouped_finding.get("files", []):
+                grouped_finding.setdefault("files", []).append(current_file)
+
+        ranked_findings = list(grouped_findings.values())
+
+        ranked_findings.sort(
+            key=lambda finding: (
+                severity_rank.get(finding.get("severity"), 99),
+                source_rank.get(finding.get("source"), 99),
+                finding.get("category") or "",
+                -(finding.get("occurrences") or 1),
+                finding.get("file") or "",
+            )
+        )
+
+        return ranked_findings[:limit]
 
     def _finding(
         self,
@@ -510,6 +779,9 @@ class AnalyzerService:
         file: str | None,
         message: str,
         recommendation: str,
+        confidence: str = "medium",
+        evidence: str | None = None,
+        source: str = "static_check",
     ) -> dict:
         return {
             "category": category,
@@ -518,4 +790,7 @@ class AnalyzerService:
             "message": message,
             "recommendation": recommendation,
             "priority": self._priority_from_severity(severity),
+            "confidence": confidence,
+            "evidence": evidence,
+            "source": source,
         }
