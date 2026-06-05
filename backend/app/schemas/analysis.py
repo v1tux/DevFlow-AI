@@ -39,6 +39,10 @@ class CategoryMetric(BaseModel):
         default_factory=MetricSeverityBreakdown
     )
 
+class AIReview(BaseModel):
+    executive_summary: str
+    main_risks: list[str] = Field(default_factory=list)
+    recommended_next_steps: list[str] = Field(default_factory=list)
 
 class AnalysisResponse(BaseModel):
     id: int
@@ -49,6 +53,7 @@ class AnalysisResponse(BaseModel):
     findings: list[Finding]
     metrics: dict[str, CategoryMetric] | None = None
     score_explanation: list[str] = Field(default_factory=list)
+    ai_review: AIReview | None = None
     created_at: datetime
 
     class Config:

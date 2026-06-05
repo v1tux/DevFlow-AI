@@ -17,6 +17,7 @@ from app.services.analyzer_service import AnalyzerService
 from app.services.repository_service import RepositoryService
 from app.services.report_service import ReportService
 from app.services.stack_detection_service import StackDetectionService
+from app.services.ai_review_service import AIReviewService
 
 router = APIRouter(
     prefix="/analyses",
@@ -29,6 +30,7 @@ analyzer_service = AnalyzerService()
 ai_service = AIService()
 report_service = ReportService()
 stack_detection_service = StackDetectionService()
+ai_review_service = AIReviewService()
 
 def extract_repository_metadata(repository_url: str) -> dict:
     parsed_url = urlparse(repository_url)
@@ -53,6 +55,30 @@ def extract_repository_metadata(repository_url: str) -> dict:
 def build_analysis_response(analysis: Analysis) -> dict:
     findings = analysis.findings or []
     metrics = analyzer_service.get_metrics(findings, analysis.score)
+
+    ai_review = ai_review_service.enrich_analysis(
+        analysis.project_name,
+        analysis.score,
+        metrics,
+        findings,
+    )
+
+    return {
+        "id": analysis.id,
+        "repository_url": analysis.repository_url,
+        "project_name": analysis.project_name,
+        "score": analysis.score,
+        "summary": analysis.summary,
+        "findings": findings,
+        "metrics": metrics,
+        "score_explanation": analyzer_service.get_score_explanation(
+            metrics,
+            findings,
+            analysis.score,
+        ),
+        "ai_review": ai_review,
+        "created_at": analysis.created_at,
+    }
 
     return {
         "id": analysis.id,
