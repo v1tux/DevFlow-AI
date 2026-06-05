@@ -6,9 +6,12 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 from app.models.analysis import Analysis
-
+from app.services.analyzer_service import AnalyzerService
 
 class ReportService:
+    def __init__(self) -> None:
+        self.analyzer_service = AnalyzerService()
+
     def build_pdf(self, analysis: Analysis) -> bytes:
         buffer = BytesIO()
         pdf = canvas.Canvas(buffer, pagesize=A4)
@@ -41,19 +44,36 @@ class ReportService:
 
         y -= 95
 
-        y = self._draw_section_title(pdf, margin_x, y, "Executive Summary")
-        y = self._draw_wrapped_text(pdf, margin_x, y, analysis.summary, 105, 10)
-
-        y -= 25
-
-        y = self._draw_section_title(pdf, margin_x, y, "Top Findings")
-
         findings = [
             finding
             for finding in analysis.findings
             if finding.get("severity") and finding.get("category")
         ]
 
+        metrics = self.analyzer_service.get_metrics(findings, analysis.score)
+        score_explanation = self.analyzer_service.get_score_explanation(
+            metrics,
+            findings,
+            analysis.score,
+        )
+
+        y = self._draw_section_title(pdf, margin_x, y, "Score Explanation")
+        y = self._draw_bullet_list(pdf, margin_x, y, score_explanation)
+
+        y -= 20
+
+        y = self._draw_section_title(pdf, margin_x, y, "Quality Breakdown")
+        y = self._draw_metrics_summary(pdf, margin_x, y, metrics)
+
+        y -= 25
+
+        y = self._draw_section_title(pdf, margin_x, y, "Executive Summary")
+        y = self._draw_wrapped_text(pdf, margin_x, y, analysis.summary, 105, 10)
+
+        y -= 25
+
+        y = self._draw_section_title(pdf, margin_x, y, "Top Findings")
+         
         for finding in findings[:20]:
             if y < 110:
                 pdf.showPage()
@@ -131,6 +151,10 @@ class ReportService:
         file_name = finding.get("file") or "Projeto"
         message = finding.get("message", "")
         recommendation = finding.get("recommendation", "")
+        confidence = finding.get("confidence")
+        evidence = finding.get("evidence")
+        occurrences = finding.get("occurrences")
+        files = finding.get("files") or []
 
         severity_color = self._severity_color(severity)
 
@@ -154,6 +178,45 @@ class ReportService:
 
         pdf.setFont("Helvetica", 9)
         y = self._draw_wrapped_text(pdf, x + 10, y, message, 88, 12)
+
+        if confidence:
+            pdf.setFont("Helvetica-Bold", 9)
+            pdf.drawString(x + 10, y, "Confidence:")
+
+            pdf.setFont("Helvetica", 9)
+            pdf.drawString(x + 85, y, str(confidence).capitalize())
+
+            y -= 14
+
+        if occurrences and occurrences > 1:
+            pdf.setFont("Helvetica-Bold", 9)
+            pdf.drawString(x + 10, y, "Occurrences:")
+
+            pdf.setFont("Helvetica", 9)
+            pdf.drawString(x + 95, y, str(occurrences))
+
+            y -= 14
+
+        if evidence:
+            pdf.setFont("Helvetica-Bold", 9)
+            pdf.drawString(x + 10, y, "Evidence:")
+
+            pdf.setFont("Helvetica", 9)
+            y = self._draw_wrapped_text(pdf, x + 85, y, evidence, 75, 12)
+
+        if files and len(files) > 1:
+            pdf.setFont("Helvetica-Bold", 9)
+            pdf.drawString(x + 10, y, "Impacted files:")
+
+            y -= 12
+
+            for file in files[:5]:
+                pdf.setFont("Helvetica", 8)
+                y = self._draw_wrapped_text(pdf, x + 25, y, f"- {file}", 90, 10)
+
+            if len(files) > 5:
+                pdf.drawString(x + 25, y, f"+{len(files) - 5} additional file(s)")
+                y -= 12
 
         if recommendation:
             y -= 3
@@ -186,6 +249,76 @@ class ReportService:
 
             pdf.drawString(x, y, line)
             y -= line_height
+
+        return y
+    
+    def _draw_bullet_list(
+        self,
+        pdf: canvas.Canvas,
+        x: int,
+        y: float,
+        items: list[str],
+    ) -> float:
+        pdf.setFillColor(colors.black)
+        pdf.setFont("Helvetica", 8)
+
+        for item in items:
+            if y < 80:
+                pdf.showPage()
+                self._draw_header(pdf, A4[0], A4[1])
+                y = A4[1] - 145
+
+            pdf.drawString(x + 8, y, "•")
+            y = self._draw_wrapped_text(pdf, x + 22, y, item, 95, 10)
+            y -= 4
+
+        return y
+
+    def _draw_metrics_summary(
+        self,
+        pdf: canvas.Canvas,
+        x: int,
+        y: float,
+        metrics: dict,
+    ) -> float:
+        labels = {
+            "security": "Security",
+            "architecture": "Architecture",
+            "maintainability": "Maintainability",
+            "devops": "DevOps",
+            "quality": "Quality",
+        }
+
+        for key, label in labels.items():
+            metric = metrics.get(key, {})
+            score = metric.get("score", 0)
+            findings_count = metric.get("findings_count", 0)
+            severity = metric.get("severity", {})
+
+            if y < 90:
+                pdf.showPage()
+                self._draw_header(pdf, A4[0], A4[1])
+                y = A4[1] - 145
+
+            pdf.setFillColor(colors.black)
+            pdf.setFont("Helvetica-Bold", 9)
+            pdf.drawString(x, y, f"{label}: {score}/100")
+
+            pdf.setFont("Helvetica", 8)
+            pdf.setFillColor(colors.HexColor("#4b5563"))
+            pdf.drawString(
+                x + 130,
+                y,
+                (
+                    f"{findings_count} findings • "
+                    f"C: {severity.get('critical', 0)} "
+                    f"H: {severity.get('high', 0)} "
+                    f"M: {severity.get('medium', 0)} "
+                    f"L: {severity.get('low', 0)}"
+                ),
+            )
+
+            y -= 16
 
         return y
 
