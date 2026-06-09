@@ -306,14 +306,18 @@ function Sidebar() {
   );
 }
 
-function Topbar({ onLogout, onNewAnalysis }) {
+function Topbar({ onLogout, onNewAnalysis, searchTerm, onSearchChange }) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   return (
     <header className="topbar">
       <div className="search-box">
         <Search size={18} />
-        <input placeholder="Buscar análises, repositórios, arquivos..." />
+        <input
+          placeholder="Buscar análises, repositórios, arquivos..."
+          value={searchTerm}
+          onChange={(event) => onSearchChange(event.target.value)}
+        />
         <kbd>⌘ K</kbd>
       </div>
 
@@ -378,6 +382,7 @@ function Topbar({ onLogout, onNewAnalysis }) {
 export default function App() {
   const [repositoryUrl, setRepositoryUrl] = useState("");
   const [file, setFile] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [analysis, setAnalysis] = useState(null);
   const [history, setHistory] = useState([]);
   const [showFindings, setShowFindings] = useState(false);
@@ -444,6 +449,7 @@ export default function App() {
     setError("");
     setFile(null);
     setRepositoryUrl("");
+    setSearchTerm("");
 
     document
       .getElementById("new-analysis-form")
@@ -512,12 +518,35 @@ export default function App() {
     }
   }
 
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+
+  const filteredHistory = history.filter((item) => {
+    const itemStatus = getStatus(item.score);
+
+    const searchableContent = [
+      item.project_name,
+      item.repository_url,
+      String(item.score),
+      itemStatus.label,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return searchableContent.includes(normalizedSearch);
+  });
+
   return (
     <main className="dashboard-shell" id="dashboard">
       <Sidebar />
 
       <section className="dashboard-main">
-        <Topbar onLogout={handleLogout} onNewAnalysis={handleNewAnalysis} />
+        <Topbar
+          onLogout={handleLogout}
+          onNewAnalysis={handleNewAnalysis}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
 
         <section className="analysis-hero" id="new-analysis-form">
           <div className="analysis-form">
@@ -788,8 +817,8 @@ export default function App() {
               <span>Ações</span>
             </div>
 
-            {history.length > 0 ? (
-              history.slice(0, 5).map((item) => {
+            {filteredHistory.length > 0 ? (
+              filteredHistory.slice(0, 5).map((item) => {
                 const itemStatus = getStatus(item.score);
 
                 return (
@@ -862,12 +891,16 @@ export default function App() {
               })
             ) : (
               <div className="empty-history">
-                <p>Nenhuma análise foi executada ainda.</p>
+                <p>
+                  {history.length === 0
+                    ? "Nenhuma análise foi executada ainda."
+                    : "Nenhuma análise encontrada para essa busca."}
+                </p>
               </div>
             )}
           </div>
 
-          <button className="history-more" type="button" disabled={history.length === 0}>
+          <button className="history-more" type="button" disabled={filteredHistory.length === 0}>
             Ver todo histórico
             <ChevronDown size={16} />
           </button>
