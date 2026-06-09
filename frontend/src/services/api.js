@@ -45,20 +45,17 @@ export async function downloadAnalysisReport(analysisId) {
     responseType: "blob",
   });
 
-  const fileURL = window.URL.createObjectURL(new Blob([response.data]));
-
+  const fileUrl = window.URL.createObjectURL(new Blob([response.data]));
   const link = document.createElement("a");
 
-  link.href = fileURL;
+  link.href = fileUrl;
   link.setAttribute("download", `devflow-analysis-${analysisId}.pdf`);
 
   document.body.appendChild(link);
-
   link.click();
 
   link.remove();
-
-  window.URL.revokeObjectURL(fileURL);
+  window.URL.revokeObjectURL(fileUrl);
 }
 
 export async function loginUser(credentials) {
