@@ -388,6 +388,20 @@ export default function App() {
     Boolean(localStorage.getItem("devflow_token"))
   );
 
+  async function handleDownloadHistoryReport(event, analysisId) {
+  event.stopPropagation();
+
+  if (!analysisId) return;
+
+  setError("");
+
+  try {
+    await downloadAnalysisReport(analysisId);
+  } catch (err) {
+    setError(err?.response?.data?.detail || "Erro ao baixar relatório PDF.");
+  }
+}
+
   async function handleDownloadReport() {
   if (!analysis?.id) return;
 
@@ -817,9 +831,31 @@ export default function App() {
                     </span>
 
                     <span className="history-actions">
-                      <Eye size={16} />
-                      <Download size={16} />
-                      <MoreVertical size={16} />
+                      <button
+                        type="button"
+                        title="Carregar análise"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setAnalysis(item);
+                          document
+                            .getElementById("dashboard")
+                            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }}
+                      >
+                        <Eye size={16} />
+                      </button>
+
+                      <button
+                        type="button"
+                        title="Baixar PDF"
+                        onClick={(event) => handleDownloadHistoryReport(event, item.id)}
+                      >
+                        <Download size={16} />
+                      </button>
+
+                      <button type="button" title="Mais opções" disabled>
+                        <MoreVertical size={16} />
+                      </button>
                     </span>
                   </button>
                 );
