@@ -98,6 +98,30 @@ function formatSeverity(severity) {
   return labels[severity] || "Info";
 }
 
+function formatConfidence(confidence) {
+  const labels = {
+    high: "Alta",
+    medium: "Média",
+    low: "Baixa",
+  };
+
+  return labels[confidence] || "Não informada";
+}
+
+function formatSource(source) {
+  const labels = {
+    static_check: "Análise estática",
+    secret_detector: "Detector de segredos",
+    sensitive_field_detector: "Detector de campo sensível",
+    bandit: "Scanner de segurança",
+    complexity: "Complexidade de código",
+    dockerfile_check: "Análise de Dockerfile",
+    devops_check: "Análise DevOps",
+  };
+
+  return labels[source] || source || "Não informada";
+}
+
 function QualityRow({ label, value, icon }) {
   return (
     <div className="quality-row">
@@ -385,6 +409,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [analysis, setAnalysis] = useState(null);
   const [history, setHistory] = useState([]);
+  const [expandedFindingKey, setExpandedFindingKey] = useState(null);
   const [showFindings, setShowFindings] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadMode, setUploadMode] = useState(false);
@@ -722,21 +747,94 @@ export default function App() {
 
             <div className="finding-table">
               {mainFindings.length > 0 ? (
-                mainFindings.map((finding, index) => (
-                  <div className="finding-row" key={`${finding.file}-${index}`}>
-                    <span className={`severity-pill ${finding.severity || "info"}`}>
-                      {formatSeverity(finding.severity)}
-                    </span>
+                mainFindings.map((finding, index) => {
+                  const findingKey = `${finding.file || "project"}-${index}`;
+                  const isExpanded = expandedFindingKey === findingKey;
 
-                    <div>
-                      <strong>{finding.file || "Projeto"}</strong>
-                      <p>{finding.message}</p>
+                  return (
+                    <div
+                      className={`finding-row-wrapper ${isExpanded ? "expanded" : ""}`}
+                      key={findingKey}
+                    >
+                      <button
+                        className="finding-row"
+                        type="button"
+                        onClick={() =>
+                          setExpandedFindingKey((current) =>
+                            current === findingKey ? null : findingKey
+                          )
+                        }
+                      >
+                        <span className={`severity-pill ${finding.severity || "info"}`}>
+                          {formatSeverity(finding.severity)}
+                        </span>
+
+                        <div>
+                          <strong>{finding.file || "Projeto"}</strong>
+                          <p>{finding.message}</p>
+                        </div>
+
+                        <small>Detalhes</small>
+
+                        <ChevronDown
+                          size={16}
+                          className={isExpanded ? "chevron-open" : ""}
+                        />
+                      </button>
+
+                      {isExpanded && (
+                        <div className="finding-expanded-detail">
+                          <div className="finding-detail-grid">
+                            <span>
+                              <strong>Confiança</strong>
+                              {formatConfidence(finding.confidence)}
+                            </span>
+
+                            <span>
+                              <strong>Fonte</strong>
+                              {formatSource(finding.source)}
+                            </span>
+
+                            <span>
+                              <strong>Ocorrências</strong>
+                              {finding.occurrences || 1}
+                            </span>
+                          </div>
+
+                          {finding.evidence && (
+                            <div className="finding-expanded-block">
+                              <strong>Evidência</strong>
+                              <p>{finding.evidence}</p>
+                            </div>
+                          )}
+
+                          {finding.recommendation && (
+                            <div className="finding-expanded-block">
+                              <strong>Recomendação</strong>
+                              <p>{finding.recommendation}</p>
+                            </div>
+                          )}
+
+                          {finding.files?.length > 1 && (
+                            <div className="finding-expanded-block">
+                              <strong>Arquivos impactados</strong>
+
+                              <ul>
+                                {finding.files.slice(0, 5).map((file) => (
+                                  <li key={file}>{file}</li>
+                                ))}
+                              </ul>
+
+                              {finding.files.length > 5 && (
+                                <p>+{finding.files.length - 5} arquivo(s) adicional(is).</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-
-                    <small>Recomendação</small>
-                    <ChevronDown size={16} />
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="empty-state">
                   <p>
