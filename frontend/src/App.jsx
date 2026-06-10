@@ -122,6 +122,47 @@ function formatSource(source) {
   return labels[source] || source || "Não informada";
 }
 
+function buildNotifications(analysis, severityTotals) {
+  if (!analysis) {
+    return [];
+  }
+
+  const notifications = [
+    {
+      id: "analysis-completed",
+      title: "Análise concluída",
+      description: `${analysis.project_name} recebeu score ${analysis.score}/100.`,
+      type: "success",
+    },
+    {
+      id: "pdf-ready",
+      title: "PDF disponível",
+      description: "O relatório executivo já pode ser baixado.",
+      type: "info",
+    },
+  ];
+
+  if (severityTotals.critical > 0) {
+    notifications.unshift({
+      id: "critical-findings",
+      title: "Achados críticos detectados",
+      description: `${severityTotals.critical} achado(s) crítico(s) exigem atenção.`,
+      type: "danger",
+    });
+  }
+
+  if (severityTotals.high > 0) {
+    notifications.push({
+      id: "high-findings",
+      title: "Achados altos encontrados",
+      description: `${severityTotals.high} achado(s) de alta severidade foram identificados.`,
+      type: "warning",
+    });
+  }
+
+  return notifications;
+}
+
 function QualityRow({ label, value, icon }) {
   return (
     <div className="quality-row">
@@ -329,9 +370,15 @@ function Sidebar() {
     </aside>
   );
 }
-
-function Topbar({ onLogout, onNewAnalysis, searchTerm, onSearchChange }) {
+function Topbar({
+  onLogout,
+  onNewAnalysis,
+  searchTerm,
+  onSearchChange,
+  notifications,
+}) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   return (
     <header className="topbar">
@@ -351,10 +398,42 @@ function Topbar({ onLogout, onNewAnalysis, searchTerm, onSearchChange }) {
           Nova Análise
         </button>
 
-        <button className="icon-button notification-button" type="button">
-          <Bell size={20} />
-          <span>3</span>
-        </button>
+        <div className="notification-wrapper">
+          <button
+            className="icon-button notification-button"
+            type="button"
+            onClick={() => setIsNotificationsOpen((current) => !current)}
+          >
+            <Bell size={20} />
+
+            {notifications.length > 0 && <span>{notifications.length}</span>}
+          </button>
+
+          {isNotificationsOpen && (
+            <div className="notifications-dropdown">
+              <div className="notifications-header">
+                <strong>Notificações</strong>
+                <small>{notifications.length} alerta(s)</small>
+              </div>
+
+              {notifications.length > 0 ? (
+                notifications.map((notification) => (
+                  <div
+                    className={`notification-item ${notification.type}`}
+                    key={notification.id}
+                  >
+                    <strong>{notification.title}</strong>
+                    <p>{notification.description}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="notification-empty">
+                  <p>Nenhuma notificação no momento.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="user-menu-wrapper">
           <button
@@ -528,6 +607,11 @@ export default function App() {
     [analysis]
   );
 
+  const notifications = useMemo(
+    () => buildNotifications(analysis, severityTotals),
+    [analysis, severityTotals]
+  );
+
   const metrics = analysis?.metrics || {};
   const score = analysis?.score ?? null;
   const status = getStatus(score);
@@ -580,6 +664,7 @@ export default function App() {
           onNewAnalysis={handleNewAnalysis}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
+          notifications={notifications}
         />
 
         <section className="analysis-hero" id="new-analysis-form">
