@@ -410,6 +410,7 @@ export default function App() {
   const [analysis, setAnalysis] = useState(null);
   const [history, setHistory] = useState([]);
   const [expandedFindingKey, setExpandedFindingKey] = useState(null);
+  const [showAllHistory, setShowAllHistory] = useState(false);
   const [showFindings, setShowFindings] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadMode, setUploadMode] = useState(false);
@@ -450,6 +451,7 @@ export default function App() {
     setRepositoryUrl("");
     setSearchTerm("");
     setExpandedFindingKey(null);
+    setShowAllHistory(false);
 
     document
       .getElementById("new-analysis-form")
@@ -559,6 +561,10 @@ export default function App() {
 
     return searchableContent.includes(normalizedSearch);
   });
+
+  const visibleHistory = showAllHistory
+    ? filteredHistory
+    : filteredHistory.slice(0, 5);
 
   if (!isAuthenticated) {
     return <AuthForm onLogin={handleLogin} />;
@@ -947,7 +953,7 @@ export default function App() {
             </div>
 
             {filteredHistory.length > 0 ? (
-              filteredHistory.slice(0, 5).map((item) => {
+              visibleHistory.map((item) => {
                 const itemStatus = getStatus(item.score);
 
                 return (
@@ -1029,9 +1035,17 @@ export default function App() {
             )}
           </div>
 
-          <button className="history-more" type="button" disabled={filteredHistory.length === 0}>
-            Ver todo histórico
-            <ChevronDown size={16} />
+          <button
+            className="history-more"
+            type="button"
+            disabled={filteredHistory.length <= 5}
+            onClick={() => setShowAllHistory((current) => !current)}
+          >
+            {showAllHistory ? "Mostrar menos" : "Ver todo histórico"}
+            <ChevronDown
+              size={16}
+              className={showAllHistory ? "chevron-open" : ""}
+            />
           </button>
         </section>
 
