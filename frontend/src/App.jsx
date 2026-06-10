@@ -418,32 +418,6 @@ export default function App() {
     Boolean(localStorage.getItem("devflow_token"))
   );
 
-  async function handleDownloadHistoryReport(event, analysisId) {
-  event.stopPropagation();
-
-  if (!analysisId) return;
-
-  setError("");
-
-  try {
-    await downloadAnalysisReport(analysisId);
-  } catch (err) {
-    setError(err?.response?.data?.detail || "Erro ao baixar relatório PDF.");
-  }
-}
-
-  async function handleDownloadReport() {
-  if (!analysis?.id) return;
-
-  setError("");
-
-  try {
-    await downloadAnalysisReport(analysis.id);
-  } catch (err) {
-    setError(err?.response?.data?.detail || "Erro ao gerar relatório PDF.");
-  }
-}
-
   async function refreshHistory() {
     try {
       const data = await listAnalyses();
@@ -475,10 +449,76 @@ export default function App() {
     setFile(null);
     setRepositoryUrl("");
     setSearchTerm("");
+    setExpandedFindingKey(null);
 
     document
       .getElementById("new-analysis-form")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function handleDownloadHistoryReport(event, analysisId) {
+    event.stopPropagation();
+
+    if (!analysisId) return;
+
+    setError("");
+
+    try {
+      await downloadAnalysisReport(analysisId);
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Erro ao baixar relatório PDF.");
+    }
+  }
+
+  async function handleDownloadReport() {
+    if (!analysis?.id) return;
+
+    setError("");
+
+    try {
+      await downloadAnalysisReport(analysis.id);
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Erro ao gerar relatório PDF.");
+    }
+  }
+
+  async function handleRepositorySubmit(event) {
+    event.preventDefault();
+    setLoading(true);
+    setUploadMode(false);
+    setError("");
+    setExpandedFindingKey(null);
+
+    try {
+      const result = await analyzeRepository(repositoryUrl);
+      setAnalysis(result);
+      await refreshHistory();
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Erro ao analisar repositório.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleUploadSubmit(event) {
+    event.preventDefault();
+
+    if (!file) return;
+
+    setLoading(true);
+    setUploadMode(true);
+    setError("");
+    setExpandedFindingKey(null);
+
+    try {
+      const result = await uploadZip(file);
+      setAnalysis(result);
+      await refreshHistory();
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Erro ao analisar ZIP.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const severityTotals = useMemo(
@@ -502,47 +542,6 @@ export default function App() {
     quality: metrics.quality?.score ?? 0,
   };
 
-  if (!isAuthenticated) {
-    return <AuthForm onLogin={handleLogin} />;
-  }
-
-  async function handleRepositorySubmit(event) {
-    event.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      const result = await analyzeRepository(repositoryUrl);
-      setAnalysis(result);
-      setUploadMode(false);
-      await refreshHistory();
-    } catch (err) {
-      setError(err?.response?.data?.detail || "Erro ao analisar repositório.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleUploadSubmit(event) {
-    event.preventDefault();
-
-    if (!file) return;
-
-    setLoading(true);
-    setError("");
-
-    try {
-      const result = await uploadZip(file);
-      setAnalysis(result);
-      setUploadMode(true);
-      await refreshHistory();
-    } catch (err) {
-      setError(err?.response?.data?.detail || "Erro ao analisar ZIP.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   const normalizedSearch = searchTerm.trim().toLowerCase();
 
   const filteredHistory = history.filter((item) => {
@@ -560,6 +559,10 @@ export default function App() {
 
     return searchableContent.includes(normalizedSearch);
   });
+
+  if (!isAuthenticated) {
+    return <AuthForm onLogin={handleLogin} />;
+  }
 
   return (
     <main className="dashboard-shell" id="dashboard">
@@ -637,6 +640,32 @@ export default function App() {
             </div>
           </div>
         </section>
+
+        {loading && (
+          <section className="analysis-loading-panel">
+            <div className="loading-orb">
+              <Sparkles size={28} />
+            </div>
+
+            <div>
+              <h2>
+                {uploadMode ? "Analisando arquivo ZIP" : "Analisando repositório"}
+              </h2>
+
+              <p>
+                O DevFlow está coletando arquivos, executando verificações técnicas,
+                calculando métricas e preparando os achados da análise.
+              </p>
+
+              <div className="loading-steps">
+                <span>Coletando projeto</span>
+                <span>Executando análise estática</span>
+                <span>Calculando score</span>
+                <span>Gerando insights</span>
+              </div>
+            </div>
+          </section>
+        )}
 
         <section className="summary-cards">
           <article className="stat-card dark">
@@ -826,7 +855,9 @@ export default function App() {
                               </ul>
 
                               {finding.files.length > 5 && (
-                                <p>+{finding.files.length - 5} arquivo(s) adicional(is).</p>
+                                <p>
+                                  +{finding.files.length - 5} arquivo(s) adicional(is).
+                                </p>
                               )}
                             </div>
                           )}
