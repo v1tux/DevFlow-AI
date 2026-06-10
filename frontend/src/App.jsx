@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import {
   analyzeRepository,
+  compareAnalyses,
   downloadAnalysisReport,
   listAnalyses,
   uploadZip,
@@ -488,6 +489,10 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [analysis, setAnalysis] = useState(null);
   const [history, setHistory] = useState([]);
+  const [selectedComparisonIds, setSelectedComparisonIds] = useState([]);
+  const [comparisonResult, setComparisonResult] = useState(null);
+  const [isComparing, setIsComparing] = useState(false);
+  const [comparisonError, setComparisonError] = useState("");
   const [expandedFindingKey, setExpandedFindingKey] = useState(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [showFindings, setShowFindings] = useState(false);
@@ -521,6 +526,9 @@ export default function App() {
     setIsAuthenticated(false);
     setHistory([]);
     setAnalysis(null);
+    setSelectedComparisonIds([]);
+    setComparisonResult(null);
+    setComparisonError("");
   }
 
   function handleNewAnalysis() {
@@ -531,6 +539,9 @@ export default function App() {
     setSearchTerm("");
     setExpandedFindingKey(null);
     setShowAllHistory(false);
+    setSelectedComparisonIds([]);
+    setComparisonResult(null);
+    setComparisonError("");
 
     document
       .getElementById("new-analysis-form")
@@ -560,6 +571,57 @@ export default function App() {
       await downloadAnalysisReport(analysis.id);
     } catch (err) {
       setError(err?.response?.data?.detail || "Erro ao gerar relatório PDF.");
+    }
+  }
+
+  function handleToggleComparisonId(event, analysisId) {
+    event.stopPropagation();
+
+    setComparisonError("");
+    setComparisonResult(null);
+
+    setSelectedComparisonIds((currentIds) => {
+      if (currentIds.includes(analysisId)) {
+        return currentIds.filter((id) => id !== analysisId);
+      }
+
+      if (currentIds.length >= 2) {
+        setComparisonError("Você pode selecionar no máximo duas análises.");
+        return currentIds;
+      }
+
+      return [...currentIds, analysisId];
+    });
+  }
+
+  async function handleCompareAnalyses() {
+    if (selectedComparisonIds.length !== 2) {
+      setComparisonError("Selecione exatamente duas análises para comparar.");
+      return;
+    }
+
+    try {
+      setIsComparing(true);
+      setComparisonError("");
+
+      const selectedAnalyses = selectedComparisonIds
+        .map((id) => history.find((item) => item.id === id))
+        .filter(Boolean)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+      const baseId = selectedAnalyses[0].id;
+      const targetId = selectedAnalyses[1].id;
+
+      const data = await compareAnalyses(baseId, targetId);
+
+      setComparisonResult(data);
+    } catch (err) {
+      console.error(err);
+      setComparisonError(
+        err?.response?.data?.detail || "Não foi possível comparar as análises selecionadas."
+      );
+    } finally {
+      setIsComparing(false);
     }
   }
 
@@ -1027,6 +1089,86 @@ export default function App() {
             <h2>Histórico de Análises</h2>
           </div>
 
+          <div className="comparison-toolbar">
+            <div>
+              <strong>Comparar evolução técnica</strong>
+              <p>
+                Selecione duas análises do histórico para comparar score, achados e severidade.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCompareAnalyses}
+              disabled={selectedComparisonIds.length !== 2 || isComparing}
+            >
+              {isComparing
+                ? "Comparando..."
+                : `Comparar análises (${selectedComparisonIds.length}/2)`}
+            </button>
+          </div>
+
+          {comparisonError && <p className="comparison-error">{comparisonError}</p>}
+
+          {comparisonResult && (
+            <section className="comparison-result-card">
+              <div className="comparison-result-header">
+                <div>
+                  <span>Resultado da comparação</span>
+                  <h3>{comparisonResult.comparison.summary}</h3>
+                </div>
+
+                <strong className={`comparison-status ${comparisonResult.comparison.status}`}>
+                  {comparisonResult.comparison.status === "improved" && "Melhorou"}
+                  {comparisonResult.comparison.status === "regressed" && "Regrediu"}
+                  {comparisonResult.comparison.status === "stable" && "Estável"}
+                </strong>
+              </div>
+
+              <div className="comparison-result-grid">
+                <article>
+                  <span>Análise base</span>
+                  <strong>{comparisonResult.base_analysis.score}</strong>
+                  <p>{comparisonResult.base_analysis.project_name}</p>
+                  <small>{comparisonResult.base_analysis.total_findings} achados</small>
+                </article>
+
+                <article>
+                  <span>Análise atual</span>
+                  <strong>{comparisonResult.target_analysis.score}</strong>
+                  <p>{comparisonResult.target_analysis.project_name}</p>
+                  <small>{comparisonResult.target_analysis.total_findings} achados</small>
+                </article>
+
+                <article>
+                  <span>Diferença</span>
+                  <strong>
+                    {comparisonResult.comparison.score_delta > 0
+                      ? `+${comparisonResult.comparison.score_delta}`
+                      : comparisonResult.comparison.score_delta}
+                  </strong>
+                  <p>
+                    {comparisonResult.comparison.findings_delta > 0
+                      ? `+${comparisonResult.comparison.findings_delta}`
+                      : comparisonResult.comparison.findings_delta}{" "}
+                    achados
+                  </p>
+                </article>
+              </div>
+
+              <div className="comparison-severity-list">
+                {Object.entries(comparisonResult.comparison.severity_delta).map(
+                  ([severity, delta]) => (
+                    <div key={severity} className="comparison-severity-item">
+                      <span>{severity}</span>
+                      <strong>{delta > 0 ? `+${delta}` : delta}</strong>
+                    </div>
+                  )
+                )}
+              </div>
+            </section>
+          )}
+
           <div className="history-table">
             <div className="history-head">
               <span>Projeto</span>
@@ -1040,14 +1182,16 @@ export default function App() {
             {filteredHistory.length > 0 ? (
               visibleHistory.map((item) => {
                 const itemStatus = getStatus(item.score);
+                const isSelectedForComparison = selectedComparisonIds.includes(item.id);
 
                 return (
                   <button
-                    className="history-row"
+                    className={`history-row ${isSelectedForComparison ? "selected-for-comparison" : ""}`}
                     key={item.id}
                     type="button"
                     onClick={() => setAnalysis(item)}
                   >
+        
                     <span>
                       <strong>{item.project_name}</strong>
                       <small>
@@ -1080,6 +1224,19 @@ export default function App() {
                     </span>
 
                     <span className="history-actions">
+                      <button
+                        type="button"
+                        title={
+                          isSelectedForComparison
+                            ? "Remover da comparação"
+                            : "Selecionar para comparação"
+                        }
+                        className={isSelectedForComparison ? "comparison-action active" : "comparison-action"}
+                        onClick={(event) => handleToggleComparisonId(event, item.id)}
+                      >
+                        {isSelectedForComparison ? "✓" : "⇄"}
+                      </button>
+                      
                       <button
                         type="button"
                         title="Carregar análise"

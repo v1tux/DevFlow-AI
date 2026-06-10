@@ -72,3 +72,14 @@ export async function registerUser(payload) {
 
   return data;
 }
+
+export async function compareAnalyses(baseId, targetId) {
+  const { data } = await api.get("/analyses/compare", {
+    params: {
+      base_id: baseId,
+      target_id: targetId,
+    },
+  });
+
+  return data;
+}
