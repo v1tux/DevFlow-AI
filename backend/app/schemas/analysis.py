@@ -54,6 +54,7 @@ class AnalysisResponse(BaseModel):
     metrics: dict[str, CategoryMetric] | None = None
     score_explanation: list[str] = Field(default_factory=list)
     ai_review: AIReview | None = None
+    improvement_roadmap: list[dict] | None = None
     created_at: datetime
 
     class Config:

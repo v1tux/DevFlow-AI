@@ -1,4 +1,5 @@
 from urllib.parse import urlparse
+from app.services.improvement_roadmap_service import ImprovementRoadmapService
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pathlib import Path
@@ -31,6 +32,7 @@ ai_service = AIService()
 report_service = ReportService()
 stack_detection_service = StackDetectionService()
 ai_review_service = AIReviewService()
+improvement_roadmap_service = ImprovementRoadmapService()
 
 def extract_repository_metadata(repository_url: str) -> dict:
     parsed_url = urlparse(repository_url)
@@ -63,6 +65,12 @@ def build_analysis_response(analysis: Analysis) -> dict:
         findings,
     )
 
+    improvement_roadmap = improvement_roadmap_service.generate(
+        analysis.score,
+        metrics,
+        findings,
+    )   
+
     return {
         "id": analysis.id,
         "repository_url": analysis.repository_url,
@@ -77,6 +85,7 @@ def build_analysis_response(analysis: Analysis) -> dict:
             analysis.score,
         ),
         "ai_review": ai_review,
+        "improvement_roadmap": improvement_roadmap,
         "created_at": analysis.created_at,
     }
 
