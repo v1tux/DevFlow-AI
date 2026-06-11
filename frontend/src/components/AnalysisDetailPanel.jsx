@@ -8,6 +8,7 @@ import {
   X,
 } from "lucide-react";
 import { FindingList } from "./FindingList";
+import { ImprovementRoadmap } from "./ImprovementRoadmap";
 
 function getStatus(score) {
   if (score === null || score === undefined) {
@@ -165,6 +166,8 @@ export function AnalysisDetailPanel({
             {analysis.summary || "Nenhum resumo disponível para esta análise."}
           </p>
         </section>
+
+        <ImprovementRoadmap roadmap={analysis.improvement_roadmap || []} />
 
         <section className="analysis-detail-section">
           <div className="detail-section-title">

@@ -1,5 +1,6 @@
 import { AuthForm } from "./components/AuthForm";
 import AIReviewPanel from "./components/AIReviewPanel";
+import { ImprovementRoadmap } from "./components/ImprovementRoadmap";
 import { AnalysisDetailPanel } from "./components/AnalysisDetailPanel";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -1066,6 +1067,8 @@ export default function App() {
           </article>
 
           {analysis?.ai_review && <AIReviewPanel review={analysis.ai_review} />}
+          
+          <ImprovementRoadmap roadmap={analysis?.improvement_roadmap || []} />
 
           <article className="panel chart-panel">
             <div className="panel-title">
