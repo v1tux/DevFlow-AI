@@ -1,5 +1,5 @@
 from urllib.parse import urlparse
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pathlib import Path
 import shutil
@@ -77,22 +77,6 @@ def build_analysis_response(analysis: Analysis) -> dict:
             analysis.score,
         ),
         "ai_review": ai_review,
-        "created_at": analysis.created_at,
-    }
-
-    return {
-        "id": analysis.id,
-        "repository_url": analysis.repository_url,
-        "project_name": analysis.project_name,
-        "score": analysis.score,
-        "summary": analysis.summary,
-        "findings": findings,
-        "metrics": metrics,
-        "score_explanation": analyzer_service.get_score_explanation(
-            metrics,
-            findings,
-            analysis.score,
-        ),
         "created_at": analysis.created_at,
     }
 
@@ -205,6 +189,117 @@ def analyze_upload(
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
+@router.get("/compare")
+def compare_analyses(
+    base_id: int = Query(..., description="ID da análise base, geralmente a mais antiga"),
+    target_id: int = Query(..., description="ID da análise alvo, geralmente a mais recente"),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    base_analysis = (
+        db.query(Analysis)
+        .filter(
+            Analysis.id == base_id,
+            Analysis.user_id == current_user["user_id"],
+        )
+        .first()
+    )
+
+    target_analysis = (
+        db.query(Analysis)
+        .filter(
+            Analysis.id == target_id,
+            Analysis.user_id == current_user["user_id"],
+        )
+        .first()
+    )
+
+    if not base_analysis:
+        raise HTTPException(status_code=404, detail="Análise base não encontrada.")
+
+    if not target_analysis:
+        raise HTTPException(status_code=404, detail="Análise alvo não encontrada.")
+
+    base_findings = base_analysis.findings or []
+    target_findings = target_analysis.findings or []
+
+    base_score = base_analysis.score or 0
+    target_score = target_analysis.score or 0
+
+    score_delta = target_score - base_score
+
+    base_total_findings = len(base_findings)
+    target_total_findings = len(target_findings)
+    findings_delta = target_total_findings - base_total_findings
+
+    def count_by_severity(findings: list[dict]) -> dict:
+        result = {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0,
+            "info": 0,
+            "unknown": 0,
+        }
+
+        for finding in findings:
+            if not isinstance(finding, dict):
+                result["unknown"] += 1
+                continue
+
+            severity = finding.get("severity") or "unknown"
+            severity = str(severity).lower()
+
+            if severity not in result:
+                severity = "unknown"
+
+            result[severity] += 1
+
+        return result
+
+    base_severities = count_by_severity(base_findings)
+    target_severities = count_by_severity(target_findings)
+
+    severity_delta = {
+        severity: target_severities.get(severity, 0) - base_severities.get(severity, 0)
+        for severity in base_severities
+    }
+
+    if score_delta > 0:
+        status = "improved"
+        summary = "A qualidade técnica melhorou em relação à análise base."
+    elif score_delta < 0:
+        status = "regressed"
+        summary = "A qualidade técnica piorou em relação à análise base."
+    else:
+        status = "stable"
+        summary = "A qualidade técnica permaneceu estável entre as análises."
+
+    return {
+        "base_analysis": {
+            "id": base_analysis.id,
+            "project_name": base_analysis.project_name,
+            "score": base_score,
+            "total_findings": base_total_findings,
+            "created_at": base_analysis.created_at,
+            "severities": base_severities,
+        },
+        "target_analysis": {
+            "id": target_analysis.id,
+            "project_name": target_analysis.project_name,
+            "score": target_score,
+            "total_findings": target_total_findings,
+            "created_at": target_analysis.created_at,
+            "severities": target_severities,
+        },
+        "comparison": {
+            "status": status,
+            "summary": summary,
+            "score_delta": score_delta,
+            "findings_delta": findings_delta,
+            "severity_delta": severity_delta,
+        },
+    }
 
 @router.get("", response_model=list[AnalysisResponse])
 def list_analyses(
