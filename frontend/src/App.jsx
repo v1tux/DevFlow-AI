@@ -1,5 +1,6 @@
 import { AuthForm } from "./components/AuthForm";
 import AIReviewPanel from "./components/AIReviewPanel";
+import { AnalysisDetailPanel } from "./components/AnalysisDetailPanel";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
@@ -488,6 +489,7 @@ export default function App() {
   const [file, setFile] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [analysis, setAnalysis] = useState(null);
+  const [selectedAnalysisDetail, setSelectedAnalysisDetail] = useState(null);
   const [history, setHistory] = useState([]);
   const [selectedComparisonIds, setSelectedComparisonIds] = useState([]);
   const [comparisonResult, setComparisonResult] = useState(null);
@@ -526,6 +528,7 @@ export default function App() {
     setIsAuthenticated(false);
     setHistory([]);
     setAnalysis(null);
+    setSelectedAnalysisDetail(null);
     setSelectedComparisonIds([]);
     setComparisonResult(null);
     setComparisonError("");
@@ -538,6 +541,7 @@ export default function App() {
     setRepositoryUrl("");
     setSearchTerm("");
     setExpandedFindingKey(null);
+    setSelectedAnalysisDetail(null);
     setShowAllHistory(false);
     setSelectedComparisonIds([]);
     setComparisonResult(null);
@@ -546,6 +550,27 @@ export default function App() {
     document
       .getElementById("new-analysis-form")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function handleLoadAnalysisFromDetail(selectedAnalysis) {
+    setAnalysis(selectedAnalysis);
+    setSelectedAnalysisDetail(null);
+
+    document
+      .getElementById("dashboard")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function handleDownloadDetailReport(analysisId) {
+    if (!analysisId) return;
+
+    setError("");
+
+    try {
+      await downloadAnalysisReport(analysisId);
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Erro ao baixar relatório PDF.");
+    }
   }
 
   async function handleDownloadHistoryReport(event, analysisId) {
@@ -1189,7 +1214,7 @@ export default function App() {
                     className={`history-row ${isSelectedForComparison ? "selected-for-comparison" : ""}`}
                     key={item.id}
                     type="button"
-                    onClick={() => setAnalysis(item)}
+                    onClick={() => setSelectedAnalysisDetail(item)}
                   >
         
                     <span>
@@ -1290,6 +1315,13 @@ export default function App() {
             />
           </button>
         </section>
+
+        <AnalysisDetailPanel
+          analysis={selectedAnalysisDetail}
+          onClose={() => setSelectedAnalysisDetail(null)}
+          onLoadAnalysis={handleLoadAnalysisFromDetail}
+          onDownloadReport={handleDownloadDetailReport}
+        />
 
         <footer className="dashboard-footer">
           DevFlow AI • FastAPI, React, PostgreSQL, Docker, análise estática e arquitetura de
