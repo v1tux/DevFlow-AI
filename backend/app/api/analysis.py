@@ -85,6 +85,7 @@ def build_analysis_response(analysis: Analysis) -> dict:
             analysis.score,
         ),
         "ai_review": ai_review,
+        "improvement_roadmap": improvement_roadmap,
         "created_at": analysis.created_at,
     }
 

@@ -1067,8 +1067,10 @@ export default function App() {
           </article>
 
           {analysis?.ai_review && <AIReviewPanel review={analysis.ai_review} />}
-          
+
+          {analysis && (
           <ImprovementRoadmap roadmap={analysis?.improvement_roadmap || []} />
+          )}
 
           <article className="panel chart-panel">
             <div className="panel-title">
