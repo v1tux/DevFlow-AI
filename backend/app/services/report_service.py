@@ -7,10 +7,12 @@ from reportlab.pdfgen import canvas
 
 from app.models.analysis import Analysis
 from app.services.analyzer_service import AnalyzerService
+from app.services.improvement_roadmap_service import ImprovementRoadmapService
 
 class ReportService:
     def __init__(self) -> None:
         self.analyzer_service = AnalyzerService()
+        self.improvement_roadmap_service = ImprovementRoadmapService()
 
     def build_pdf(self, analysis: Analysis) -> bytes:
         buffer = BytesIO()
@@ -57,6 +59,12 @@ class ReportService:
             analysis.score,
         )
 
+        improvement_roadmap = self.improvement_roadmap_service.generate(
+            analysis.score,
+            metrics,
+            findings,
+        )
+
         y = self._draw_section_title(pdf, margin_x, y, "Score Explanation")
         y = self._draw_bullet_list(pdf, margin_x, y, score_explanation)
 
@@ -69,6 +77,11 @@ class ReportService:
 
         y = self._draw_section_title(pdf, margin_x, y, "Executive Summary")
         y = self._draw_wrapped_text(pdf, margin_x, y, analysis.summary, 105, 10)
+
+        y -= 25
+
+        y = self._draw_section_title(pdf, margin_x, y, "Improvement Roadmap")
+        y = self._draw_improvement_roadmap(pdf, margin_x, y, improvement_roadmap)
 
         y -= 25
 
@@ -252,6 +265,32 @@ class ReportService:
 
         return y
     
+    def _draw_wrapped_text_with_color(
+        self,
+        pdf: canvas.Canvas,
+        x: int,
+        y: float,
+        text: str,
+        width: int,
+        line_height: int,
+        color,
+    ) -> float:
+        pdf.setFillColor(color)
+        pdf.setFont("Helvetica", 8)
+
+        for line in self._wrap(text, width):
+            if y < 60:
+                pdf.showPage()
+                self._draw_header(pdf, A4[0], A4[1])
+                y = A4[1] - 145
+                pdf.setFillColor(color)
+                pdf.setFont("Helvetica", 8)
+
+            pdf.drawString(x, y, line)
+            y -= line_height
+
+        return y
+    
     def _draw_bullet_list(
         self,
         pdf: canvas.Canvas,
@@ -319,6 +358,122 @@ class ReportService:
             )
 
             y -= 16
+
+        return y
+    
+    def _draw_improvement_roadmap(
+        self,
+        pdf: canvas.Canvas,
+        x: int,
+        y: float,
+        roadmap: list[dict],
+    ) -> float:
+        if not roadmap:
+            pdf.setFillColor(colors.HexColor("#4b5563"))
+            pdf.setFont("Helvetica", 9)
+            pdf.drawString(
+                x,
+                y,
+                "No improvement roadmap was generated for this analysis.",
+            )
+
+            return y - 18
+
+        card_width = 495
+        line_height = 10
+
+        for item in roadmap:
+            priority = item.get("priority", "-")
+            title = item.get("title", "Improvement item")
+            category = str(item.get("category", "quality")).capitalize()
+            impact = str(item.get("impact", "medium")).capitalize()
+            effort = str(item.get("effort", "medium")).capitalize()
+            reason = item.get("reason", "")
+            recommendation = item.get("recommendation", "")
+
+            reason_lines = self._wrap(reason, 72)
+            recommendation_lines = self._wrap(recommendation, 66)
+
+            card_height = (
+                58
+                + len(reason_lines) * line_height
+                + len(recommendation_lines) * line_height
+                + 24
+            )
+
+            card_height = max(card_height, 112)
+
+            if y - card_height < 70:
+                pdf.showPage()
+                self._draw_header(pdf, A4[0], A4[1])
+                y = A4[1] - 145
+                y = self._draw_section_title(pdf, x, y, "Improvement Roadmap")
+
+            card_bottom = y - card_height + 10
+
+            pdf.setFillColor(colors.HexColor("#111827"))
+            pdf.roundRect(
+                x,
+                card_bottom,
+                card_width,
+                card_height,
+                10,
+                fill=1,
+                stroke=0,
+            )
+
+            pdf.setFillColor(colors.HexColor("#38bdf8"))
+            pdf.roundRect(x + 12, y - 12, 42, 20, 7, fill=1, stroke=0)
+
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold", 8)
+            pdf.drawString(x + 23, y - 7, f"#{priority}")
+
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold", 10)
+            pdf.drawString(x + 65, y - 2, title[:72])
+
+            current_y = y - 22
+
+            pdf.setFillColor(colors.HexColor("#cbd5e1"))
+            pdf.setFont("Helvetica-Bold", 8)
+            pdf.drawString(
+                x + 65,
+                current_y,
+                f"Category: {category}  |  Impact: {impact}  |  Effort: {effort}",
+            )
+
+            current_y -= 18
+
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold", 8)
+            pdf.drawString(x + 65, current_y, "Reason:")
+
+            pdf.setFillColor(colors.HexColor("#cbd5e1"))
+            pdf.setFont("Helvetica", 8)
+
+            text_y = current_y
+
+            for line in reason_lines:
+                pdf.drawString(x + 112, text_y, line)
+                text_y -= line_height
+
+            current_y = text_y - 4
+
+            pdf.setFillColor(colors.white)
+            pdf.setFont("Helvetica-Bold", 8)
+            pdf.drawString(x + 65, current_y, "Recommendation:")
+
+            pdf.setFillColor(colors.HexColor("#cbd5e1"))
+            pdf.setFont("Helvetica", 8)
+
+            text_y = current_y
+
+            for line in recommendation_lines:
+                pdf.drawString(x + 150, text_y, line)
+                text_y -= line_height
+
+            y = card_bottom - 12
 
         return y
 
