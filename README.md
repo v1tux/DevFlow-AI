@@ -1,8 +1,10 @@
 # 🚀 DevFlow AI
 
-DevFlow AI is a backend-focused platform for technical repository analysis, software quality insights, automated findings generation and executive PDF reporting.
+DevFlow AI is a backend-focused platform for technical repository analysis, software quality insights, automated findings generation, historical comparison and executive PDF reporting.
 
-The project was built to demonstrate practical backend engineering skills using FastAPI, PostgreSQL, Docker, JWT authentication, repository scanning, quality metrics and structured technical reports.
+The project was built to demonstrate practical backend engineering skills using FastAPI, PostgreSQL, Docker, JWT authentication, repository scanning, quality metrics, service-oriented architecture and structured technical reports.
+
+DevFlow AI does not only point out problems in a codebase. It analyzes technical quality, explains the score, tracks historical evolution and generates a prioritized improvement roadmap.
 
 ---
 
@@ -20,34 +22,56 @@ The project was built to demonstrate practical backend engineering skills using 
 
 ![Findings](./assets/findings.png)
 
+### Analysis Detail Panel
+
+![Analysis Detail](./assets/analysis-detail.png)
+
+### Analysis Comparison
+
+![Analysis Comparison](./assets/analysis-comparison.png)
+
+### Improvement Roadmap
+
+![Improvement Roadmap](./assets/improvement-roadmap.png)
+
 ### Executive PDF Report
 
 ![PDF Report](./assets/pdf-report.png)
+
+### PDF Improvement Roadmap
+
+![PDF Roadmap](./assets/pdf-roadmap.png)
 
 ---
 
 ## ✨ Features
 
-- 🔐 JWT authentication
-- 🛡️ Protected API routes
-- 👤 User-scoped analyses
-- 🐘 PostgreSQL persistence
-- 🐳 Dockerized environment
-- ⚡ FastAPI backend
-- ⚛️ React + Vite frontend
-- 🔍 GitHub repository analysis
-- 📦 ZIP upload analysis
-- 📊 Backend-driven quality metrics
-- 🧠 Score explanation system
-- 🧾 Enriched technical findings
-- 📌 Finding confidence, evidence and source
-- 🗂️ Grouped repeated findings with occurrences
-- 🧪 Secret detection with contextual rules
-- 🐳 Dockerfile and DevOps checks
-- 📄 Executive PDF report generation
-- ❤️ Healthcheck endpoint
-- 📈 Metrics endpoint
-- 🧪 CI/CD validation pipeline with Ruff
+* 🔐 JWT authentication
+* 🛡️ Protected API routes
+* 👤 User-scoped analyses
+* 🐘 PostgreSQL persistence
+* 🐳 Dockerized environment
+* ⚡ FastAPI backend
+* ⚛️ React + Vite frontend
+* 🔍 GitHub repository analysis
+* 📦 ZIP upload analysis
+* 📊 Backend-driven quality metrics
+* 🧠 Score explanation system
+* 🧾 Enriched technical findings
+* 📌 Finding confidence, evidence and source
+* 🗂️ Grouped repeated findings with occurrences
+* 🧪 Secret detection with contextual rules
+* 🐳 Dockerfile and DevOps checks
+* 📈 Historical analysis tracking
+* 🔁 Analysis comparison
+* 🧭 Prioritized improvement roadmap
+* 🧠 AI-assisted technical review
+* 🔎 Detailed analysis panel
+* 📄 Executive PDF report generation
+* 📌 Improvement roadmap inside PDF reports
+* ❤️ Healthcheck endpoint
+* 📈 Metrics endpoint
+* 🧪 CI/CD validation pipeline with Ruff
 
 ---
 
@@ -55,31 +79,32 @@ The project was built to demonstrate practical backend engineering skills using 
 
 ### Back-End
 
-- Python
-- FastAPI
-- SQLAlchemy
-- PostgreSQL
-- Pydantic
-- JWT / OAuth2
-- ReportLab
-- Radon
-- Bandit
+* Python
+* FastAPI
+* SQLAlchemy
+* PostgreSQL
+* Pydantic
+* JWT / OAuth2
+* ReportLab
+* Radon
+* Bandit
 
 ### Front-End
 
-- React
-- Vite
-- JavaScript
-- Axios
-- Lucide React
+* React
+* Vite
+* JavaScript
+* Axios
+* Lucide React
+* Custom CSS
 
 ### DevOps / Quality
 
-- Docker
-- Docker Compose
-- GitHub Actions
-- Ruff Lint
-- Environment variables
+* Docker
+* Docker Compose
+* GitHub Actions
+* Ruff Lint
+* Environment variables
 
 ---
 
@@ -99,6 +124,8 @@ Auth / Analysis Routes
 RepositoryService
 AnalyzerService
 AIService
+AIReviewService
+ImprovementRoadmapService
 ReportService
 StackDetectionService
    ↓
@@ -107,11 +134,13 @@ PostgreSQL
 
 ### Main Backend Responsibilities
 
-- `RepositoryService`: clones and cleans temporary GitHub repositories.
-- `AnalyzerService`: performs static checks, metrics calculation, findings enrichment and scoring.
-- `AIService`: generates technical summaries with fallback behavior.
-- `ReportService`: builds executive PDF reports.
-- `StackDetectionService`: detects technologies used in the analyzed project.
+* `RepositoryService`: clones and cleans temporary GitHub repositories.
+* `AnalyzerService`: performs static checks, metrics calculation, findings enrichment and scoring.
+* `AIService`: generates technical summaries with fallback behavior.
+* `AIReviewService`: enriches the analysis with AI-style technical review insights.
+* `ImprovementRoadmapService`: generates prioritized technical improvement actions.
+* `ReportService`: builds executive PDF reports.
+* `StackDetectionService`: detects technologies used in the analyzed project.
 
 ---
 
@@ -129,11 +158,12 @@ The API uses JWT-based authentication.
 
 ### Protected Routes
 
-- `POST /analyses/repository`
-- `POST /analyses/upload`
-- `GET /analyses`
-- `GET /analyses/{analysis_id}`
-- `GET /analyses/{analysis_id}/report`
+* `POST /analyses/repository`
+* `POST /analyses/upload`
+* `GET /analyses`
+* `GET /analyses/{analysis_id}`
+* `GET /analyses/compare`
+* `GET /analyses/{analysis_id}/report`
 
 ---
 
@@ -158,9 +188,13 @@ Quality metrics calculation
    ↓
 Score explanation
    ↓
+AI-assisted review
+   ↓
+Improvement roadmap generation
+   ↓
 Findings grouping and ranking
    ↓
-Dashboard + PDF report
+Dashboard + Detail View + PDF Report
 ```
 
 ---
@@ -171,20 +205,20 @@ DevFlow AI calculates quality metrics on the backend and sends them to the front
 
 Current metric groups:
 
-- Security
-- Architecture
-- Maintainability
-- DevOps
-- Quality
+* Security
+* Architecture
+* Maintainability
+* DevOps
+* Quality
 
 Each metric includes:
 
-- Score
-- Findings count
-- Critical findings
-- High findings
-- Medium findings
-- Low findings
+* Score
+* Findings count
+* Critical findings
+* High findings
+* Medium findings
+* Low findings
 
 Example:
 
@@ -221,9 +255,9 @@ DevOps: 10%
 
 The score can also be limited by risk rules, such as:
 
-- Critical findings
-- High number of high-severity findings
-- Security score equal to zero
+* Critical findings
+* High number of high-severity findings
+* Security score equal to zero
 
 This prevents the platform from showing an optimistic score when the repository has serious risks.
 
@@ -245,19 +279,87 @@ This makes the analysis easier to understand and improves transparency.
 
 ---
 
+## 🧭 Improvement Roadmap
+
+DevFlow AI generates a prioritized technical improvement roadmap based on score, findings and quality metrics.
+
+Each roadmap item includes:
+
+* Priority
+* Title
+* Category
+* Impact
+* Effort
+* Technical reason
+* Recommended action
+
+Example:
+
+```json
+{
+  "priority": 1,
+  "title": "Reduce high-severity findings",
+  "category": "quality",
+  "impact": "high",
+  "effort": "medium",
+  "reason": "High-severity findings can affect reliability, maintainability and safe project evolution.",
+  "recommendation": "Group findings by category and fix first the ones that impact security, architecture and the main application flow."
+}
+```
+
+This allows the platform to answer not only what is wrong, but also what should be improved first.
+
+---
+
+## 🔁 Analysis Comparison
+
+DevFlow AI allows users to compare two previous analyses.
+
+The comparison includes:
+
+* Base analysis score
+* Target analysis score
+* Score delta
+* Findings delta
+* Severity delta
+* Improvement, regression or stable status
+
+This helps track whether the project quality improved or worsened over time.
+
+---
+
+## 🔎 Analysis Detail Panel
+
+Each historical analysis can be opened in a dedicated detail panel.
+
+The detail view includes:
+
+* Project name
+* Repository origin
+* Analysis date
+* Technical score
+* Executive summary
+* Metrics breakdown
+* Improvement roadmap
+* Technical findings
+* PDF download action
+* Option to load the selected analysis into the dashboard
+
+---
+
 ## 📂 Technical Findings
 
 Findings are enriched with structured information:
 
-- Category
-- Severity
-- Priority
-- Confidence
-- Evidence
-- Source
-- Recommendation
-- Occurrences
-- Impacted files
+* Category
+* Severity
+* Priority
+* Confidence
+* Evidence
+* Source
+* Recommendation
+* Occurrences
+* Impacted files
 
 Example:
 
@@ -293,12 +395,12 @@ SECRET_KEY = "hardcoded-value"
 
 Examples of security checks:
 
-- Possible hardcoded secrets
-- Sensitive fields in schemas/models
-- Use of `eval`
-- Bandit security scan results
-- Environment variable usage
-- Docker container running as root
+* Possible hardcoded secrets
+* Sensitive fields in schemas/models
+* Use of `eval`
+* Bandit security scan results
+* Environment variable usage
+* Docker container running as root
 
 ---
 
@@ -306,16 +408,16 @@ Examples of security checks:
 
 DevFlow AI checks for DevOps maturity signals such as:
 
-- Dockerfile presence
-- `.dockerignore`
-- `.env.example`
-- `docker-compose.yml`
-- GitHub Actions workflow
-- Dockerfile quality
-- Use of `WORKDIR`
-- Use of `CMD` or `ENTRYPOINT`
-- Use of non-root user
-- Avoiding `latest` image tags
+* Dockerfile presence
+* `.dockerignore`
+* `.env.example`
+* `docker-compose.yml`
+* GitHub Actions workflow
+* Dockerfile quality
+* Use of `WORKDIR`
+* Use of `CMD` or `ENTRYPOINT`
+* Use of non-root user
+* Avoiding `latest` image tags
 
 ---
 
@@ -323,16 +425,18 @@ DevFlow AI checks for DevOps maturity signals such as:
 
 The platform generates a PDF report containing:
 
-- Project name
-- Overall score
-- Executive summary
-- Score explanation
-- Quality breakdown
-- Top findings
-- Confidence and evidence
-- Occurrences
-- Impacted files
-- Recommendations
+* Project name
+* Overall score
+* Generated date
+* Score explanation
+* Quality breakdown
+* Executive summary
+* Improvement roadmap
+* Top findings
+* Confidence and evidence
+* Occurrences
+* Impacted files
+* Recommendations
 
 The report is designed to provide a technical but readable overview for review, documentation or portfolio presentation.
 
@@ -408,11 +512,11 @@ The project includes automated validation with GitHub Actions.
 
 Current quality checks:
 
-- Backend lint with Ruff
-- Docker-based development workflow
-- Protected backend routes
-- Healthcheck endpoint
-- Metrics endpoint
+* Backend lint with Ruff
+* Docker-based development workflow
+* Protected backend routes
+* Healthcheck endpoint
+* Metrics endpoint
 
 ---
 
@@ -445,34 +549,41 @@ devflow-ai/
 
 ### ✅ Completed
 
-- JWT authentication
-- PostgreSQL integration
-- Docker Compose environment
-- Protected routes
-- Repository analysis
-- ZIP upload analysis
-- Backend-driven metrics
-- Score explanation
-- Findings enrichment
-- Grouped repeated findings
-- Context-aware secret detection
-- DevOps and Docker checks
-- Executive PDF report
-- Swagger/OpenAPI
-- Metrics and healthcheck endpoints
-- CI/CD pipeline
+* JWT authentication
+* PostgreSQL integration
+* Docker Compose environment
+* Protected routes
+* Repository analysis
+* ZIP upload analysis
+* Backend-driven metrics
+* Score explanation
+* Findings enrichment
+* Grouped repeated findings
+* Context-aware secret detection
+* DevOps and Docker checks
+* Executive PDF report
+* Improvement roadmap
+* Improvement roadmap inside PDF reports
+* Analysis detail panel
+* Historical score comparison
+* AI-assisted review layer
+* Swagger/OpenAPI
+* Metrics and healthcheck endpoints
+* CI/CD pipeline
 
 ### 🚧 Next Steps
 
-- AI-assisted review layer
-- Background queue for long analyses
-- Advanced repository size handling
-- Team workspaces
-- Historical score comparison
-- Pull request analysis
-- Production deploy
-- Advanced PDF layout
-- More test coverage
+* Background queue for long analyses
+* Advanced repository size handling
+* Team workspaces
+* Pull request analysis
+* Production deploy
+* Advanced PDF layout
+* More test coverage
+* Repository private access
+* Analysis by branch
+* Dashboard filters and advanced search
+* Public demo environment
 
 ---
 
@@ -480,13 +591,13 @@ devflow-ai/
 
 Victor Anderson Lobo Prates
 
-- GitHub: https://github.com/v1tux
-- LinkedIn: https://linkedin.com/in/victor-lobo-prates-196970233
+* GitHub: https://github.com/v1tux
+* LinkedIn: https://linkedin.com/in/victor-lobo-prates-196970233
 
 ---
 
 ## ⭐ About
 
-DevFlow AI is a portfolio project focused on backend engineering, repository analysis, software quality metrics and technical reporting.
+DevFlow AI is a portfolio project focused on backend engineering, repository analysis, software quality metrics, historical comparison and technical reporting.
 
-The goal is to demonstrate practical experience with API design, authentication, database persistence, Docker, static analysis, scoring systems, PDF generation and modern backend architecture.
+The goal is to demonstrate practical experience with API design, authentication, database persistence, Docker, static analysis, scoring systems, PDF generation, service-oriented architecture and modern backend development.
